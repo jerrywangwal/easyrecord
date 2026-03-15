@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EasyRecord 开发全教程 · 从零开始</title>
+  <style>
+    :root {
+      --accent: #6C63FF;
+      --accent2: #a78bfa;
+      --bg: #f6f6fb;
+      --surface: #fff;
+      --border: #e5e5f0;
+      --text: #1e1e2e;
+      --muted: #6b7280;
+      --code-bg: #1e1e2e;
+      --code-text: #cdd6f4;
+      --green: #2f9e44;
+      --red: #e03131;
+      --yellow: #f08c00;
+      --radius: 12px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+
+    /* ===== HERO ===== */
+    .hero {
+      background: linear-gradient(135deg, #6C63FF 0%, #a78bfa 50%, #f472b6 100%);
+      color: white;
+      padding: 80px 24px 64px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      backdrop-filter: blur(4px);
+    }
+    .hero h1 {
+      font-size: clamp(32px, 6vw, 60px);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+    .hero h1 span { opacity: 0.85; font-weight: 400; }
+    .hero p {
+      font-size: 18px;
+      opacity: 0.9;
+      max-width: 560px;
+      margin: 0 auto 32px;
+    }
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+    .hero-stat { text-align: center; }
+    .hero-stat-num { font-size: 28px; font-weight: 800; }
+    .hero-stat-label { font-size: 12px; opacity: 0.75; font-weight: 500; }
+
+    /* ===== NAV ===== */
+    .toc-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+      padding: 0 24px;
+      overflow-x: auto;
+    }
+    .toc-nav ul {
+      display: flex;
+      list-style: none;
+      gap: 0;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .toc-nav li a {
+      display: block;
+      padding: 14px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .toc-nav li a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ===== LAYOUT ===== */
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    /* ===== SECTION ===== */
+    .section {
+      margin-top: 64px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+    }
+    .section-num {
+      width: 36px; height: 36px;
+      background: var(--accent);
+      color: white;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    /* ===== CARDS ===== */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    }
+    .card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card p { color: var(--muted); font-size: 14px; line-height: 1.65; }
+    .card ul { margin-top: 8px; padding-left: 20px; color: var(--muted); font-size: 14px; }
+    .card ul li { margin-bottom: 4px; }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    /* ===== FEATURE PILL ===== */
+    .feature-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(108,99,255,0.08);
+      color: var(--accent);
+      border: 1px solid rgba(108,99,255,0.2);
+    }
+    .pill.green { background: rgba(47,158,68,0.08); color: var(--green); border-color: rgba(47,158,68,0.2); }
+    .pill.yellow { background: rgba(240,140,0,0.08); color: var(--yellow); border-color: rgba(240,140,0,0.2); }
+    .pill.red { background: rgba(224,49,49,0.08); color: var(--red); border-color: rgba(224,49,49,0.2); }
+
+    /* ===== CODE BLOCK ===== */
+    .code-block {
+      background: var(--code-bg);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin: 16px 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .code-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .code-block-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.5);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .code-dots { display: flex; gap: 5px; }
+    .code-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    pre {
+      padding: 20px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--code-text);
+    }
+    .kw { color: #cba6f7; }
+    .fn { color: #89b4fa; }
+    .str { color: #a6e3a1; }
+    .comment { color: #585b70; font-style: italic; }
+    .num { color: #fab387; }
+    .tag { color: #f38ba8; }
+    .attr { color: #89dceb; }
+
+    /* ===== STEP LIST ===== */
+    .step-list { display: flex; flex-direction: column; gap: 16px; }
+    .step {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .step-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      background: rgba(108,99,255,0.1);
+    }
+    .step-content h4 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .step-content p { font-size: 14px; color: var(--muted); }
+    .step-content code {
+      background: rgba(108,99,255,0.08);
+      color: var(--accent);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'SF Mono', monospace;
+      font-size: 12px;
+    }
+
+    /* ===== ARCHITECTURE DIAGRAM ===== */
+    .arch-diagram {
+      background: var(--code-bg);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin: 16px 0;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      color: var(--code-text);
+      line-height: 1.8;
+    }
+    .arch-box {
+      display: inline-block;
+      border: 1px solid rgba(108,99,255,0.5);
+      background: rgba(108,99,255,0.1);
+      color: #cba6f7;
+      padding: 4px 12px;
+      border-radius: 6px;
+      margin: 2px;
+    }
+    .arch-arrow { color: #585b70; margin: 0 4px; }
+
+    /* ===== HIGHLIGHT BOX ===== */
+    .highlight-box {
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin: 16px 0;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .highlight-box.info { background: rgba(108,99,255,0.07); border: 1px solid rgba(108,99,255,0.2); }
+    .highlight-box.warning { background: rgba(240,140,0,0.07); border: 1px solid rgba(240,140,0,0.2); }
+    .highlight-box.success { background: rgba(47,158,68,0.07); border: 1px solid rgba(47,158,68,0.2); }
+    .highlight-box-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .highlight-box-content { font-size: 14px; line-height: 1.65; }
+    .highlight-box-content strong { display: block; margin-bottom: 4px; font-size: 14px; }
+    .highlight-box.info .highlight-box-content strong { color: var(--accent); }
+    .highlight-box.warning .highlight-box-content strong { color: var(--yellow); }
+    .highlight-box.success .highlight-box-content strong { color: var(--green); }
+
+    /* ===== TABLE ===== */
+    .table-wrap { overflow-x: auto; margin: 16px 0; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { background: var(--bg); padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+    td { padding: 12px 16px; border-top: 1px solid var(--border); }
+    tr:hover td { background: rgba(108,99,255,0.03); }
+
+    /* ===== TIMELINE ===== */
+    .timeline { position: relative; padding-left: 28px; }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 7px; top: 8px; bottom: 8px;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--accent), var(--accent2));
+      border-radius: 2px;
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 28px;
+    }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -24px;
+      top: 6px;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid white;
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+    .timeline-item h4 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .timeline-item p { font-size: 14px; color: var(--muted); }
+
+    /* ===== FOOTER ===== */
+    .footer {
+      text-align: center;
+      padding: 40px 24px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+
+    /* ===== KEYBOARD SHORTCUT ===== */
+    kbd {
+      display: inline-block;
+      padding: 2px 7px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-bottom-width: 2px;
+      border-radius: 5px;
+      font-family: 'SF Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* ===== FLOW CHART ===== */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+    .flow-node {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .flow-node.active { border-color: var(--accent); background: rgba(108,99,255,0.06); color: var(--accent); }
+    .flow-node.green { border-color: var(--green); background: rgba(47,158,68,0.06); color: var(--green); }
+    .flow-arrow { color: var(--muted); font-size: 20px; padding: 0 6px; }
+
+    @media (max-width: 600px) {
+      .hero { padding: 48px 16px 40px; }
+      .hero-stats { gap: 24px; }
+      .card-grid { grid-template-columns: 1fr; }
+      .flow { flex-direction: column; }
+      .flow-arrow { transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">📖 完整开发教程 · 小白友好</div>
+  <h1>从零构建 EasyRecord<br/><span>白板录屏工具开发全记录</span></h1>
+  <p>一步步了解这个工具是如何被设计和开发出来的，学习 Canvas 绘图、录屏、摄像头等核心技术。</p>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-num">4</div>
+      <div class="hero-stat-label">核心文件</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">1200+</div>
+      <div class="hero-stat-label">行 JS 代码</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">15+</div>
+      <div class="hero-stat-label">功能模块</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">0</div>
+      <div class="hero-stat-label">后端依赖</div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="toc-nav">
+  <ul>
+    <li><a href="#intro">项目介绍</a></li>
+    <li><a href="#structure">文件结构</a></li>
+    <li><a href="#canvas">画布系统</a></li>
+    <li><a href="#tools">绘图工具</a></li>
+    <li><a href="#webcam">摄像头</a></li>
+    <li><a href="#recording">录制系统</a></li>
+    <li><a href="#mp4">MP4 导出</a></li>
+    <li><a href="#slides">多页面</a></li>
+    <li><a href="#deploy">发布上线</a></li>
+  </ul>
+</nav>
+
+<div class="container">
+
+  <!-- ===== SECTION 0: 介绍 ===== -->
+  <div class="section" id="intro">
+    <div class="section-header">
+      <div class="section-num">0</div>
+      <div class="section-title">项目介绍：EasyRecord 是什么？</div>
+    </div>
+
+    <div class="card">
+      <h3>🎯 核心定位</h3>
+      <p>EasyRecord 是一个运行在浏览器里的<strong>白板录屏工具</strong>，专为教学、演示、内容创作设计。用户可以在画布上实时绘图，同时录制屏幕 + 摄像头 + 麦克风，最终导出 MP4 视频。</p>
+      <div class="feature-pills">
+        <span class="pill">🖊️ 手绘风格白板</span>
+        <span class="pill">📹 画中画摄像头</span>
+        <span class="pill green">🎙️ 麦克风录音</span>
+        <span class="pill green">📦 MP4 导出</span>
+        <span class="pill yellow">🗂️ 多页幻灯片</span>
+        <span class="pill yellow">↩️ 撤销/重做</span>
+      </div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3>✅ 技术选型原则</h3>
+        <ul>
+          <li>纯前端，无需后端服务器</li>
+          <li>零框架，原生 HTML/CSS/JS</li>
+          <li>依赖最少化，只引入两个库</li>
+          <li>性能优先，60fps 流畅绘图</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>📦 仅一个外部依赖</h3>
+        <ul>
+          <li><strong>Rough.js</strong> — 手绘风格图形渲染</li>
+        </ul>
+        <p style="margin-top:8px">包括 MP4 录制在内，其余所有功能全部用原生 Web API 实现，无额外依赖。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 1: 文件结构 ===== -->
+  <div class="section" id="structure">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <div class="section-title">文件结构解析</div>
+    </div>
+
+    <p style="margin-bottom:16px;color:var(--muted)">整个项目只有 4 个文件，结构极其简单：</p>
+
+    <div class="code-block">
+      <div class="code-block-header">
+        <div class="code-dots">
+          <div class="code-dot" style="background:#ff5f57"></div>
+          <div class="code-dot" style="background:#febc2e"></div>
+          <div class="code-dot" style="background:#28c840"></div>
+        </div>
+        <div class="code-block-title">项目目录</div>
+      </div>
+      <pre>easyrecord/
+├── <span class="attr">index.html</span>   <span class="comment">← 页面结构：工具栏、画布、侧边栏、弹窗</span>
+├── <span class="attr">style.css</span>    <span class="comment">← 所有样式：布局、组件、动画</span>
+├── <span class="attr">app.js</span>       <span class="comment">← 核心逻辑：绘图、录制、幻灯片管理</span>
+└── <span class="attr">server.py</span>    <span class="comment">← 本地开发服务器（设置安全响应头）</span></pre>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>文件</th><th>作用</th><th>行数</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>index.html</code></td><td>页面骨架、所有 UI 元素的 HTML 结构</td><td>~275 行</td></tr>
+          <tr><td><code>style.css</code></td><td>完整样式系统，CSS 变量 + 响应式布局</td><td>~706 行</td></tr>
+          <tr><td><code>app.js</code></td><td>所有交互逻辑，包裹在 IIFE 中避免污染全局</td><td>~1280 行</td></tr>
+          <tr><td><code>server.py</code></td><td>带 COOP/COEP 头的开发服务器，供 ffmpeg.wasm 使用</td><td>~26 行</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="highlight-box info">
+      <div class="highlight-box-icon">💡</div>
+      <div class="highlight-box-content">
+        <strong>为什么 app.js 用 IIFE 包裹？</strong>
+        所有代码都包在 <code>(function() { 'use strict'; ... })()</code> 里，这样内部变量不会泄露到 <code>window</code> 全局对象，避免与引入的库冲突。这是不用打包工具时的最佳实践。
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 2: 画布系统 ===== -->
+  <div class="section" id="canvas">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <div class="section-title">画布系统：Canvas 核心原理</div>
+    </div>
+
+    <div class="card">
+      <h3>🖼️ 状态驱动渲染</h3>
+      <p>所有绘图元素都保存在一个 <strong>状态对象（state）</strong> 里，每次有任何变化，都完整重绘整个画布。这是最简单、最可靠的渲染方式。</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-block-header">
+        <div class="code-dots">
+          <div class="code-dot" style="background:#ff5f57"></div>
+          <div class="code-dot" style="background:#febc2e"></div>
+          <div class="code-dot" style="background:#28c840"></div>
+        </div>
+        <div class="code-block-title">app.js — 状态对象</div>
+      </div>
+      <pre><span class="kw">const</span> state = {
+  tool: <span class="str">'select'</span>,       <span class="comment">// 当前工具</span>
+  color: <span class="str">'#1e1e2e'</span>,    <span class="comment">// 当前颜色</span>
+  strokeSize: <span class="num">2</span>,      <span class="comment">// 线宽</span>
+  roughStyle: <span class="kw">true</span>,   <span class="comment">// 手绘风格开关</span>
+  slides: [{ elements: [], bgColor: <span class="str">'#ffffff'</span>, undoStack: [] }],
+  currentSlideIdx: <span class="num">0</span>, <span class="comment">// 当前页索引</span>
+  isRecording: <span class="kw">false</span>, <span class="comment">// 录制中？</span>
+  webcamStream: <span class="kw">null</span>, <span class="comment">// 摄像头流</span>
+  <span class="comment">// ... 更多属性</span>
+};</pre>
+    </div>
+
+    <div class="card">
+      <h3>📐 自适应比例缩放</h3>
+      <p>画布会根据窗口大小和用户选择的比例（16:9、9:16、3:4、1:1）自动计算尺寸，保证内容不变形。</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-block-header">
+        <div class="code-dots">
+          <div class="code-dot" style="background:#ff5f57"></div>
+          <div class="code-dot" style="background:#febc2e"></div>
+          <div class="code-dot" style="background:#28c840"></div>
+        </div>
+        <div class="code-block-title">app.js — resizeCanvas()</div>
+      </div>
+      <pre><span class="kw">function</span> <span class="fn">resizeCanvas</span>() {
+  <span class="kw">const</span> ratios = { <span class="str">'16:9'</span>: <span class="num">16</span>/<span class="num">9</span>, <span class="str">'9:16'</span>: <span class="num">9</span>/<span class="num">16</span>, <span class="str">'3:4'</span>: <span class="num">3</span>/<span class="num">4</span>, <span class="str">'1:1'</span>: <span class="num">1</span> };
+  <span class="kw">const</span> ratio = ratios[state.canvasRatio];
+
+  <span class="kw">let</span> w = availW;
+  <span class="kw">let</span> h = w / ratio;
+  <span class="comment">// 如果高度超出，以高度为准</span>
+  <span class="kw">if</span> (h > availH) { h = availH; w = h * ratio; }
+
+  canvas.width = Math.<span class="fn">floor</span>(w);
+  canvas.height = Math.<span class="fn">floor</span>(h);
+}</pre>
+    </div>
+
+    <div class="highlight-box info">
+      <div class="highlight-box-icon">💡</div>
+      <div class="highlight-box-content">
+        <strong>关键技巧：先算宽，再算高，超出就反过来</strong>
+        这个双向约束算法保证画布始终适应容器，无论横屏竖屏都不会溢出。
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 3: 绘图工具 ===== -->
+  <div class="section" id="tools">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <div class="section-title">绘图工具系统</div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3>🖊️ 自由画笔</h3>
+        <p>鼠标按下时记录路径点数组，松开时保存。绘制时用 <strong>二次贝塞尔曲线</strong>（quadraticCurveTo）平滑连接各点，效果比直线连接自然。</p>
+      </div>
+      <div class="card">
+        <h3>📐 几何图形</h3>
+        <p>按下记录起点，拖动时实时预览（重绘 + 临时元素），松开时将形状保存进 elements 数组。支持矩形、椭圆、菱形、直线、箭头。</p>
+      </div>
+      <div class="card">
+        <h3>✏️ 手绘风格</h3>
+        <p>几何图形通过 <strong>Rough.js</strong> 渲染，会自动添加轻微的不规则抖动，让线条看起来像手画的。可以在设置中关闭，切换为精确几何模式。</p>
+      </div>
+      <div class="card">
+        <h3>🔤 文字工具</h3>
+        <p>点击画布弹出一个透明的 textarea 覆盖层，输入完成后把文字渲染到 Canvas 上，字体用 Caveat（手写体），支持多行。</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>工具</th><th>快捷键</th><th>数据结构</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>选择/移动</td><td><kbd>V</kbd></td><td>通过 boundingBox 命中测试</td></tr>
+          <tr><td>画笔</td><td><kbd>P</kbd></td><td><code>{ type:'pen', points:[[x,y],...] }</code></td></tr>
+          <tr><td>荧光笔</td><td><kbd>H</kbd></td><td>同上，透明度 35%，线宽 ×8</td></tr>
+          <tr><td>橡皮擦</td><td><kbd>E</kbd></td><td>按中心点距离过滤删除元素</td></tr>
+          <tr><td>直线/箭头</td><td><kbd>L</kbd> / <kbd>A</kbd></td><td><code>{ type:'arrow', x1,y1,x2,y2 }</code></td></tr>
+          <tr><td>矩形</td><td><kbd>R</kbd></td><td><code>{ type:'rect', x1,y1,x2,y2 }</code></td></tr>
+          <tr><td>椭圆</td><td><kbd>O</kbd></td><td><code>{ type:'ellipse', x1,y1,x2,y2 }</code></td></tr>
+          <tr><td>文字</td><td><kbd>T</kbd></td><td><code>{ type:'text', x,y,text,fontSize }</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>↩️ 撤销系统（Undo Stack）</h3>
+      <p>每次开始绘制前，把当前 elements 数组的深拷贝压入 <code>undoStack</code>。按 <kbd>Ctrl</kbd>+<kbd>Z</kbd> 时，弹出最近一次状态恢复。最多保存 50 步，避免内存占用过大。</p>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 4: 摄像头 ===== -->
+  <div class="section" id="webcam">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <div class="section-title">摄像头画中画（PiP）</div>
+    </div>
+
+    <div class="card">
+      <h3>📹 getUserMedia API</h3>
+      <p>通过浏览器的 <code>navigator.mediaDevices.getUserMedia()</code> 获取摄像头流，将视频流赋给 <code>&lt;video&gt;</code> 元素自动播放（静音、无控件）。</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-block-header">
+        <div class="code-dots">
+          <div class="code-dot" style="background:#ff5f57"></div>
+          <div class="code-dot" style="background:#febc2e"></div>
+          <div class="code-dot" style="background:#28c840"></div>
+        </div>
+        <div class="code-block-title">app.js — 启动摄像头</div>
+      </div>
+      <pre><span class="kw">async function</span> <span class="fn">startWebcam</span>() {
+  <span class="kw">const</span> stream = <span class="kw">await</span> navigator.mediaDevices.<span class="fn">getUserMedia</span>({
+    video: { facingMode: <span class="str">'user'</span>, width: <span class="num">320</span>, height: <span class="num">320</span> },
+    audio: <span class="kw">false</span>  <span class="comment">// 视频只需画面，音频单独录制</span>
+  });
+  webcamVideo.srcObject = stream;
+  state.webcamStream = stream;
+}</pre>
+    </div>
+
+    <div class="card">
+      <h3>🔲 圆形裁切 + 定位修复</h3>
+      <p>PiP 窗口用 <code>border-radius: 50%</code> + <code>overflow: hidden</code> 实现圆形。<br/>关键修复：将 PiP 元素从 <code>canvasWrapper</code>（有 overflow:hidden）<strong>移出到 canvasArea</strong>，避免切换画布比例时被裁切。</p>
+    </div>
+
+    <div class="highlight-box warning">
+      <div class="highlight-box-icon">⚠️</div>
+      <div class="highlight-box-content">
+        <strong>常见坑：overflow:hidden 导致 PiP 被遮挡</strong>
+        如果 PiP 放在有 overflow:hidden 的容器里，当容器变窄（如切换 3:4 比例时），PiP 会被直接裁掉。解决方案：把 PiP 放到更外层的容器（canvasArea），让 canvasArea 做 position:relative 参照。
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🖱️ 可拖动实现</h3>
+      <p>监听 mousedown/mousemove/mouseup 三个事件，记录拖动起始位置和元素起始位置，计算偏移量更新 left/top，边界约束在 canvasArea 范围内。</p>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 5: 录制系统 ===== -->
+  <div class="section" id="recording">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <div class="section-title">录制系统：MediaRecorder API</div>
+    </div>
+
+    <div class="card">
+      <h3>🎬 录制原理</h3>
+      <p>浏览器提供 <code>MediaRecorder</code> API，可以录制任意 MediaStream。核心挑战是：<strong>如何同时录制画布内容 + 摄像头画面 + 麦克风？</strong></p>
+    </div>
+
+    <div class="flow">
+      <div class="flow-node">canvas.captureStream(30fps)</div>
+      <div class="flow-arrow">+</div>
+      <div class="flow-node">webcamVideo</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node active">合成 Canvas (offscreen)</div>
+      <div class="flow-arrow">+</div>
+      <div class="flow-node">麦克风音频</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node green">MediaRecorder → WebM</div>
+    </div>
+
+    <div class="highlight-box info">
+      <div class="highlight-box-icon">💡</div>
+      <div class="highlight-box-content">
+        <strong>为什么需要合成 Canvas？</strong>
+        如果直接录制主画布，摄像头 PiP 是一个独立的 HTML 元素，不在 Canvas 里，录制结果里不会有摄像头。所以需要创建一个<strong>离屏 Canvas</strong>，每帧把主画布内容 + 摄像头视频手动合成进去。
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-block-header">
+        <div class="code-dots">
+          <div class="code-dot" style="background:#ff5f57"></div>
+          <div class="code-dot" style="background:#febc2e"></div>
+          <div class="code-dot" style="background:#28c840"></div>
+        </div>
+        <div class="code-block-title">app.js — 合成每一帧</div>
+      </div>
+      <pre><span class="kw">function</span> <span class="fn">drawFrame</span>() {
+  <span class="kw">if</span> (!state.isRecording) <span class="kw">return</span>;
+
+  <span class="comment">// 1. 把主画布内容复制进合成画布</span>
+  compCtx.<span class="fn">drawImage</span>(canvas, <span class="num">0</span>, <span class="num">0</span>);
+
+  <span class="comment">// 2. 把摄像头圆形画进右下角</span>
+  compCtx.<span class="fn">save</span>();
+  compCtx.<span class="fn">beginPath</span>();
+  compCtx.<span class="fn">arc</span>(cx, cy, radius, <span class="num">0</span>, Math.PI * <span class="num">2</span>);
+  compCtx.<span class="fn">clip</span>();                  <span class="comment">// 圆形裁切</span>
+  compCtx.<span class="fn">scale</span>(-<span class="num">1</span>, <span class="num">1</span>);             <span class="comment">// 左右镜像</span>
+  compCtx.<span class="fn">drawImage</span>(webcamVideo, ...); <span class="comment">// 画摄像头</span>
+  compCtx.<span class="fn">restore</span>();
+
+  <span class="fn">requestAnimationFrame</span>(drawFrame); <span class="comment">// 循环，每帧执行</span>
+}</pre>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3>⏱️ 录制计时器</h3>
+        <p>用 <code>setInterval</code> 每秒更新，计算 <code>Date.now() - startTime</code> 的差值，格式化为 <code>MM:SS</code> 显示在屏幕上方。</p>
+      </div>
+      <div class="card">
+        <h3>🎙️ 麦克风权限</h3>
+        <p>录制开始时单独申请麦克风权限（<code>audio: true</code>），失败了也没关系，降级为无声录制，不影响画面录制。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 6: MP4 导出 ===== -->
+  <div class="section" id="mp4">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <div class="section-title">MP4 导出：浏览器原生方案</div>
+    </div>
+
+    <div class="card">
+      <h3>💡 从 ffmpeg.wasm 到原生录制</h3>
+      <p>最初方案是录制 WebM 再用 <code>ffmpeg.wasm</code> 在浏览器端转码为 MP4。但 ffmpeg.wasm 需要加载约 20MB 的 wasm 文件，国内网络访问 CDN 不稳定，导致转码经常失败、直接 fallback 成 WebM。</p>
+      <p style="margin-top:8px">现在的方案更简单：<strong>让 MediaRecorder 直接录 MP4</strong>。Chrome 130+、Safari、新版 Edge 都已原生支持 <code>video/mp4</code> 录制，录完即下载，零转码、零等待、零网络依赖。</p>
+    </div>
+
+    <div class="flow">
+      <div class="flow-node">检测支持的格式</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node active">MediaRecorder 直录 MP4</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node green">直接下载 .mp4</div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-block-header">
+        <div class="code-dots">
+          <div class="code-dot" style="background:#ff5f57"></div>
+          <div class="code-dot" style="background:#febc2e"></div>
+          <div class="code-dot" style="background:#28c840"></div>
+        </div>
+        <div class="code-block-title">app.js — 格式优先级检测</div>
+      </div>
+      <pre><span class="kw">function</span> <span class="fn">getSupportedMimeType</span>() {
+  <span class="comment">// 优先选 MP4，浏览器原生支持则直接录制，无需转码</span>
+  <span class="kw">const</span> types = [
+    <span class="str">'video/mp4;codecs=avc1,mp4a.40.2'</span>,  <span class="comment">// H.264 + AAC（最佳兼容性）</span>
+    <span class="str">'video/mp4;codecs=avc1'</span>,
+    <span class="str">'video/mp4'</span>,
+    <span class="str">'video/webm;codecs=vp9,opus'</span>,       <span class="comment">// 旧版 Chrome 的 fallback</span>
+    <span class="str">'video/webm'</span>,
+  ];
+  <span class="kw">for</span> (<span class="kw">const</span> t <span class="kw">of</span> types) {
+    <span class="kw">if</span> (MediaRecorder.<span class="fn">isTypeSupported</span>(t)) <span class="kw">return</span> t;
+  }
+  <span class="kw">return</span> <span class="str">''</span>;
+}</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-block-header">
+        <div class="code-dots">
+          <div class="code-dot" style="background:#ff5f57"></div>
+          <div class="code-dot" style="background:#febc2e"></div>
+          <div class="code-dot" style="background:#28c840"></div>
+        </div>
+        <div class="code-block-title">app.js — 下载逻辑</div>
+      </div>
+      <pre><span class="kw">async function</span> <span class="fn">downloadRecording</span>() {
+  <span class="kw">const</span> mimeType = state.mediaRecorder.mimeType;
+  <span class="kw">const</span> isNativeMp4 = mimeType.<span class="fn">includes</span>(<span class="str">'mp4'</span>);
+
+  <span class="kw">if</span> (isNativeMp4) {
+    <span class="comment">// 原生 MP4 — 直接下载，无需任何转码</span>
+    <span class="kw">const</span> blob = <span class="kw">new</span> <span class="fn">Blob</span>(state.recordedChunks, { type: <span class="str">'video/mp4'</span> });
+    <span class="fn">triggerDownload</span>(blob, <span class="str">`easyrecord-${Date.now()}.mp4`</span>);
+    <span class="fn">showToast</span>(<span class="str">'✅ MP4 视频已下载！'</span>, <span class="num">2800</span>);
+    <span class="kw">return</span>;
+  }
+  <span class="comment">// WebM fallback（旧浏览器）→ 尝试 ffmpeg.wasm 转码，失败则直接给 WebM</span>
+}</pre>
+    </div>
+
+    <div class="highlight-box success">
+      <div class="highlight-box-icon">✅</div>
+      <div class="highlight-box-content">
+        <strong>兼容性覆盖</strong>
+        Chrome 130+、Safari（全版本）、Edge 130+ 均支持原生 MP4 录制，覆盖绝大多数用户场景。旧版 Chrome 会 fallback 到 WebM，并提示用户升级浏览器。
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 7: 多页面 ===== -->
+  <div class="section" id="slides">
+    <div class="section-header">
+      <div class="section-num">7</div>
+      <div class="section-title">多页幻灯片系统</div>
+    </div>
+
+    <div class="card">
+      <h3>🗂️ 数据结构设计</h3>
+      <p>每个 Slide 是一个独立的对象，包含自己的元素列表、背景色和撤销栈。所有 Slide 保存在 <code>state.slides</code> 数组里。</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-block-header">
+        <div class="code-dots">
+          <div class="code-dot" style="background:#ff5f57"></div>
+          <div class="code-dot" style="background:#febc2e"></div>
+          <div class="code-dot" style="background:#28c840"></div>
+        </div>
+        <div class="code-block-title">Slide 数据结构</div>
+      </div>
+      <pre><span class="comment">// 每个 slide 是独立的数据孤岛</span>
+state.slides = [
+  {
+    elements: [ <span class="comment">/* 该页的所有绘图元素 */</span> ],
+    bgColor: <span class="str">'#ffffff'</span>,
+    undoStack: [ <span class="comment">/* 该页的撤销历史 */</span> ]
+  },
+  <span class="comment">// ... 更多页</span>
+];</pre>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3>🖼️ 缩略图渲染</h3>
+        <p>每个 Slide 缩略图是一个小 Canvas，切换/修改时在离屏 Canvas 上缩放重绘所有元素，再复制到缩略图 Canvas。</p>
+      </div>
+      <div class="card">
+        <h3>🔀 拖拽排序</h3>
+        <p>利用 HTML5 原生 Drag & Drop API，监听 dragstart / dragover / drop 事件，实现 Slide 拖拽重排序。</p>
+      </div>
+      <div class="card">
+        <h3>⌨️ 键盘切换</h3>
+        <p>按方向键 <kbd>←</kbd> <kbd>→</kbd> 可以快速切换 Slide，方便演示时操作。切换时有滑入动画效果。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 8: 发布上线 ===== -->
+  <div class="section" id="deploy">
+    <div class="section-header">
+      <div class="section-num">8</div>
+      <div class="section-title">发布上线</div>
+    </div>
+
+    <div class="card">
+      <h3>🌐 方案对比</h3>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>平台</th><th>费用</th><th>国内访问</th><th>自定义响应头</th><th>推荐程度</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Vercel</td><td>免费</td><td>⚠️ 偶尔被墙</td><td>✅ vercel.json</td><td>⭐⭐⭐⭐</td></tr>
+          <tr><td>EdgeOne Pages</td><td>免费额度</td><td>✅ 国内 CDN</td><td>✅ 控制台配置</td><td>⭐⭐⭐⭐⭐</td></tr>
+          <tr><td>GitHub Pages</td><td>免费</td><td>⚠️ 不稳定</td><td>❌ 不支持</td><td>⭐⭐</td></tr>
+          <tr><td>自有服务器</td><td>付费</td><td>✅</td><td>✅ 完全控制</td><td>⭐⭐⭐</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>🚀 Vercel 部署步骤</h3>
+    </div>
+
+    <div class="step-list">
+      <div class="step">
+        <div class="step-icon">1️⃣</div>
+        <div class="step-content">
+          <h4>创建 vercel.json（设置响应头）</h4>
+          <p>在项目根目录创建此文件，告诉 Vercel 为所有响应添加 COOP/COEP 头，让 ffmpeg.wasm 可以正常工作。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-icon">2️⃣</div>
+        <div class="step-content">
+          <h4>安装 Vercel CLI</h4>
+          <p>在终端运行：<code>npm install -g vercel</code></p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-icon">3️⃣</div>
+        <div class="step-content">
+          <h4>登录并部署</h4>
+          <p>运行 <code>vercel login</code> 用 GitHub 账号登录，然后 <code>vercel --prod</code> 一键部署，完成后获得 <code>xxx.vercel.app</code> 链接。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-block-header">
+        <div class="code-dots">
+          <div class="code-dot" style="background:#ff5f57"></div>
+          <div class="code-dot" style="background:#febc2e"></div>
+          <div class="code-dot" style="background:#28c840"></div>
+        </div>
+        <div class="code-block-title">vercel.json — 响应头配置</div>
+      </div>
+      <pre>{
+  <span class="attr">"headers"</span>: [
+    {
+      <span class="attr">"source"</span>: <span class="str">"/(.*)"</span>,
+      <span class="attr">"headers"</span>: [
+        { <span class="attr">"key"</span>: <span class="str">"Cross-Origin-Opener-Policy"</span>, <span class="attr">"value"</span>: <span class="str">"same-origin"</span> },
+        { <span class="attr">"key"</span>: <span class="str">"Cross-Origin-Embedder-Policy"</span>, <span class="attr">"value"</span>: <span class="str">"require-corp"</span> },
+        { <span class="attr">"key"</span>: <span class="str">"Cross-Origin-Resource-Policy"</span>, <span class="attr">"value"</span>: <span class="str">"cross-origin"</span> }
+      ]
+    }
+  ]
+}</pre>
+    </div>
+
+    <div class="card">
+      <h3>🔄 修改代码后如何更新上线？</h3>
+      <p>每次修改完代码，在终端运行以下命令即可一键重新部署，几秒内生效：</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-block-header">
+        <div class="code-dots">
+          <div class="code-dot" style="background:#ff5f57"></div>
+          <div class="code-dot" style="background:#febc2e"></div>
+          <div class="code-dot" style="background:#28c840"></div>
+        </div>
+        <div class="code-block-title">终端 — 重新部署命令</div>
+      </div>
+      <pre><span class="comment"># 设置临时环境变量（解决部分网络 SSL 证书问题）</span>
+<span class="kw">export</span> NODE_TLS_REJECT_UNAUTHORIZED=0
+
+<span class="comment"># 进入项目目录</span>
+<span class="kw">cd</span> /path/to/your/project
+
+<span class="comment"># 部署到生产环境</span>
+vercel --prod</pre>
+    </div>
+
+    <div class="highlight-box success">
+      <div class="highlight-box-icon">✅</div>
+      <div class="highlight-box-content">
+        <strong>国内访问推荐使用 EdgeOne Pages</strong>
+        如果你的用户主要在国内，EdgeOne Pages（腾讯云）有国内 CDN 加速，访问速度更快更稳定，同样支持免费部署和自定义响应头。
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 开发时间线 ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">📜</div>
+      <div class="section-title">开发迭代记录</div>
+    </div>
+
+    <div class="timeline">
+      <div class="timeline-item">
+        <h4>第一版：基础白板</h4>
+        <p>实现画布、工具栏、颜色选择、多种绘图工具（画笔、图形、文字）、撤销功能。</p>
+      </div>
+      <div class="timeline-item">
+        <h4>加入摄像头 PiP</h4>
+        <p>使用 getUserMedia 获取摄像头，显示为圆形画中画，支持拖动和大小切换。</p>
+      </div>
+      <div class="timeline-item">
+        <h4>录制功能</h4>
+        <p>用 MediaRecorder 录制离屏合成 Canvas（主画布 + 摄像头叠加），支持麦克风，导出 WebM。</p>
+      </div>
+      <div class="timeline-item">
+        <h4>多页幻灯片</h4>
+        <p>重构状态管理，支持多个独立 Slide，各有独立背景色、元素和撤销栈，底部缩略图导航。</p>
+      </div>
+      <div class="timeline-item">
+        <h4>MP4 导出（v1：ffmpeg.wasm）</h4>
+        <p>引入 ffmpeg.wasm，录制 WebM 后在浏览器端转码为 H.264 MP4。需要 COOP/COEP 响应头支持 SharedArrayBuffer。</p>
+      </div>
+      <div class="timeline-item">
+        <h4>MP4 导出（v2：原生录制）</h4>
+        <p>ffmpeg.wasm 依赖 20MB wasm 文件，国内 CDN 不稳定导致转码失败。改为优先让 MediaRecorder 直接录 MP4（Chrome 130+、Safari 原生支持），零转码、零等待，彻底解决问题。</p>
+      </div>
+      <div class="timeline-item">
+        <h4>PiP 定位修复</h4>
+        <p>修复切换 3:4/9:16 比例时摄像头被 overflow:hidden 遮挡的问题，将 PiP 提升到 canvasArea 层级。</p>
+      </div>
+      <div class="timeline-item">
+        <h4>发布上线</h4>
+        <p>生成 vercel.json，通过 Vercel CLI 一键部署，获得公开访问链接。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 扩展学习 ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num">🔗</div>
+      <div class="section-title">扩展阅读 &amp; 技术文档</div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3>📚 Canvas API</h3>
+        <p>本项目大量使用 Canvas 2D Context，包括路径、图形、文字、变换、合成等。</p>
+        <p style="margin-top:8px"><a href="https://developer.mozilla.org/zh-CN/docs/Web/API/Canvas_API" target="_blank" style="color:var(--accent)">MDN Canvas 文档 →</a></p>
+      </div>
+      <div class="card">
+        <h3>🎬 MediaRecorder API</h3>
+        <p>浏览器录制视频的核心 API，支持录制 MediaStream（摄像头、屏幕、Canvas 流）。</p>
+        <p style="margin-top:8px"><a href="https://developer.mozilla.org/zh-CN/docs/Web/API/MediaRecorder" target="_blank" style="color:var(--accent)">MDN MediaRecorder →</a></p>
+      </div>
+      <div class="card">
+        <h3>✏️ Rough.js</h3>
+        <p>让 SVG/Canvas 图形看起来像手绘的 JavaScript 库，简单易用。</p>
+        <p style="margin-top:8px"><a href="https://roughjs.com" target="_blank" style="color:var(--accent)">roughjs.com →</a></p>
+      </div>
+      <div class="card">
+        <h3>🎥 MediaRecorder 格式支持</h3>
+        <p>Chrome 130+ 和 Safari 已支持 <code>video/mp4</code> 原生录制，用 <code>MediaRecorder.isTypeSupported()</code> 可在运行时检测，无需任何外部依赖。</p>
+        <p style="margin-top:8px"><a href="https://caniuse.com/mediarecorder" target="_blank" style="color:var(--accent)">Can I Use: MediaRecorder →</a></p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <p>EasyRecord 开发教程 · 由 <strong>WorkBuddy</strong> 辅助开发 · 2026</p>
+  <p style="margin-top:6px;font-size:12px">纯前端实现 · 无后端依赖 · 代码完全开放</p>
+</div>
+
+</body>
+</html>

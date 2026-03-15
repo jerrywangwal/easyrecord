@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EasyRecord - 白板录屏工具</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ===== TOP BAR ===== -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect width="28" height="28" rx="7" fill="#6C63FF"/>
+        <path d="M7 20L12 9L17 16L20 12L23 20H7Z" fill="white" stroke="white" stroke-width="0.5"/>
+        <circle cx="20" cy="9" r="2" fill="#FFD166"/>
+      </svg>
+      <span class="logo-text">EasyRecord</span>
+    </div>
+  </div>
+  <div class="topbar-center">
+    <!-- Tool buttons -->
+    <div class="toolbar" id="toolbar">
+      <button class="tool-btn active" data-tool="select" title="选择 (V)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 2l16 9-9 2-4 8L4 2z" fill="currentColor"/></svg>
+      </button>
+      <div class="tool-divider"></div>
+      <button class="tool-btn" data-tool="pen" title="画笔 (P)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/></svg>
+      </button>
+      <button class="tool-btn" data-tool="highlighter" title="荧光笔 (H)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M7 2l10 10-3 3-2-1-5 5H4v-3l5-5-1-2 3-3L7 2zm9 2l-2 2 3 3 2-2-3-3z" fill="currentColor" opacity="0.8"/><rect x="3" y="19" width="8" height="2" rx="1" fill="currentColor"/></svg>
+      </button>
+      <button class="tool-btn" data-tool="eraser" title="橡皮擦 (E)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M15.14 3L21 8.86 12 18H21V20H3L3 20 8.86 14.14 15.14 3zM6.5 18H10l8-8-3.5-3.5-8 8V18z" fill="currentColor"/></svg>
+      </button>
+      <div class="tool-divider"></div>
+      <button class="tool-btn" data-tool="line" title="直线 (L)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><line x1="4" y1="20" x2="20" y2="4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+      </button>
+      <button class="tool-btn" data-tool="arrow" title="箭头 (A)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><line x1="5" y1="19" x2="19" y2="5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M19 5L13 5L19 11" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      </button>
+      <button class="tool-btn" data-tool="rect" title="矩形 (R)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="6" width="16" height="12" rx="1" stroke="currentColor" stroke-width="2.2" fill="none"/></svg>
+      </button>
+      <button class="tool-btn" data-tool="ellipse" title="椭圆 (O)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><ellipse cx="12" cy="12" rx="9" ry="7" stroke="currentColor" stroke-width="2.2" fill="none"/></svg>
+      </button>
+      <button class="tool-btn" data-tool="diamond" title="菱形 (D)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 3L21 12L12 21L3 12Z" stroke="currentColor" stroke-width="2.2" fill="none"/></svg>
+      </button>
+      <button class="tool-btn" data-tool="text" title="文字 (T)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 4v3h5.5v12h3V7H19V4H5z" fill="currentColor"/></svg>
+      </button>
+      <div class="tool-divider"></div>
+      <button class="tool-btn" id="camToggleToolBtn" title="开关摄像头 (C)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z" fill="currentColor"/></svg>
+      </button>
+      <button class="tool-btn" id="uploadImageBtn" title="插入图片">
+        <svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><path d="M3 15l5-5 4 4 3-3 6 6" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/></svg>
+      </button>
+      <button class="tool-btn" id="pasteBtn" title="粘贴图片或文字 (Ctrl+V)">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn-secondary" id="settingsBtn" title="画布设置">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/></svg>
+      设置
+    </button>
+    <button class="btn-secondary" id="clearBtn" title="清除画布">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14V4zm-15 3v13c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V7H4z" fill="currentColor"/></svg>
+      清除
+    </button>
+    <button class="btn-primary" id="recordBtn">
+      <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="8" fill="currentColor"/></svg>
+      开始录制
+    </button>
+  </div>
+</header>
+
+<!-- ===== MAIN AREA ===== -->
+<main class="main-area">
+  <!-- Canvas wrapper -->
+  <div class="canvas-area" id="canvasArea">
+  <div class="canvas-wrapper" id="canvasWrapper">
+    <canvas id="drawCanvas"></canvas>
+
+    <!-- Text input overlay -->
+    <div id="textInputOverlay" class="text-input-overlay hidden">
+      <textarea id="textInput" placeholder="输入文字..." rows="3"></textarea>
+    </div>
+
+    <!-- Image drag handles -->
+    <div id="selectionBox" class="selection-box hidden"></div>
+
+    <!-- Mouse highlight -->
+    <div id="mouseHighlight" class="mouse-highlight hidden"></div>
+  </div>
+
+  <!-- Webcam PiP -->
+  <div class="webcam-pip-wrapper" id="webcamPipWrapper">
+    <video id="webcamVideo" autoplay muted playsinline></video>
+    <div class="pip-controls">
+      <button class="pip-btn" id="toggleCamBtn" title="开关摄像头">
+        <svg viewBox="0 0 24 24" width="14" height="14"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Resize handle: 与 wrapper 同级，挂在 canvasArea，JS 控制位置，不受任何 overflow 限制 -->
+  <div class="pip-resize-handle" id="pipResizeHandle" title="拖拽调整大小">
+    <svg viewBox="0 0 10 10" width="10" height="10">
+      <path d="M2 8 L8 2 M5 8 L8 5" stroke="white" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </div>
+
+  </div><!-- /canvas-area -->
+
+  <!-- Recording indicator -->
+  <div class="recording-indicator hidden" id="recordingIndicator">
+    <span class="rec-dot"></span>
+    <span id="recTimer">00:00</span>
+  </div>
+
+  <!-- ===== SLIDE BAR ===== -->
+  <div class="slide-bar" id="slideBar">
+    <div class="slide-bar-inner" id="slideList">
+      <!-- slides rendered by JS -->
+    </div>
+    <button class="slide-add-btn" id="addSlideBtn" title="新增 Slide">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></svg>
+      新增 Slide
+    </button>
+  </div>
+
+  <!-- Color & stroke panel -->
+  <div class="side-panel" id="sidePanel">
+    <div class="panel-section">
+      <label class="panel-label">颜色</label>
+      <div class="color-grid">
+        <button class="color-swatch active" style="background:#1e1e2e" data-color="#1e1e2e"></button>
+        <button class="color-swatch" style="background:#e03131" data-color="#e03131"></button>
+        <button class="color-swatch" style="background:#2f9e44" data-color="#2f9e44"></button>
+        <button class="color-swatch" style="background:#1971c2" data-color="#1971c2"></button>
+        <button class="color-swatch" style="background:#f08c00" data-color="#f08c00"></button>
+        <button class="color-swatch" style="background:#6741d9" data-color="#6741d9"></button>
+        <button class="color-swatch" style="background:#e64980" data-color="#e64980"></button>
+        <button class="color-swatch" style="background:#0c8599" data-color="#0c8599"></button>
+        <button class="color-swatch custom-color" id="customColorBtn" title="自定义颜色">
+          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+        </button>
+        <input type="color" id="colorPicker" value="#1e1e2e" style="opacity:0;position:absolute;width:0;height:0"/>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <label class="panel-label">填充</label>
+      <div class="fill-options">
+        <button class="fill-btn active" data-fill="none" title="无填充">
+          <svg viewBox="0 0 20 20" width="18" height="18"><rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="4 2"/></svg>
+        </button>
+        <button class="fill-btn" data-fill="solid" title="实心填充">
+          <svg viewBox="0 0 20 20" width="18" height="18"><rect x="2" y="2" width="16" height="16" rx="2" fill="currentColor"/></svg>
+        </button>
+        <button class="fill-btn" data-fill="hatch" title="斜线填充">
+          <svg viewBox="0 0 20 20" width="18" height="18"><rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><line x1="5" y1="2" x2="2" y2="5" stroke="currentColor" stroke-width="1.5"/><line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" stroke-width="1.5"/><line x1="15" y1="2" x2="2" y2="15" stroke="currentColor" stroke-width="1.5"/><line x1="18" y1="4" x2="4" y2="18" stroke="currentColor" stroke-width="1.5"/><line x1="18" y1="9" x2="9" y2="18" stroke="currentColor" stroke-width="1.5"/><line x1="18" y1="14" x2="14" y2="18" stroke="currentColor" stroke-width="1.5"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <label class="panel-label">线宽</label>
+      <div class="stroke-options">
+        <button class="stroke-btn active" data-size="2" title="细">
+          <svg viewBox="0 0 32 12" width="32" height="12"><line x1="2" y1="6" x2="30" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button class="stroke-btn" data-size="5" title="中">
+          <svg viewBox="0 0 32 12" width="32" height="12"><line x1="2" y1="6" x2="30" y2="6" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
+        </button>
+        <button class="stroke-btn" data-size="10" title="粗">
+          <svg viewBox="0 0 32 12" width="32" height="12"><line x1="2" y1="6" x2="30" y2="6" stroke="currentColor" stroke-width="10" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <label class="panel-label">线条风格</label>
+      <div class="stroke-style-options">
+        <button class="style-btn active" data-style="solid" title="实线">
+          <svg viewBox="0 0 32 8" width="32" height="8"><line x1="2" y1="4" x2="30" y2="4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        </button>
+        <button class="style-btn" data-style="dashed" title="虚线">
+          <svg viewBox="0 0 32 8" width="32" height="8"><line x1="2" y1="4" x2="30" y2="4" stroke="currentColor" stroke-width="2.5" stroke-dasharray="6 4" stroke-linecap="round"/></svg>
+        </button>
+        <button class="style-btn" data-style="dotted" title="点线">
+          <svg viewBox="0 0 32 8" width="32" height="8"><line x1="2" y1="4" x2="30" y2="4" stroke="currentColor" stroke-width="2.5" stroke-dasharray="2 5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <label class="panel-label">字体大小</label>
+      <div class="font-size-options">
+        <button class="font-btn" data-fontsize="16" title="小">S</button>
+        <button class="font-btn active" data-fontsize="24" title="中">M</button>
+        <button class="font-btn" data-fontsize="36" title="大">L</button>
+        <button class="font-btn" data-fontsize="56" title="超大">XL</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ===== SETTINGS MODAL ===== -->
+<div class="modal-overlay hidden" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>画布设置</h3>
+      <button class="modal-close" id="closeSettings">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="setting-group">
+        <label>画布比例</label>
+        <div class="ratio-options">
+          <button class="ratio-btn active" data-ratio="16:9">16:9<br/><small>横屏/YouTube</small></button>
+          <button class="ratio-btn" data-ratio="9:16">9:16<br/><small>竖屏/短视频</small></button>
+          <button class="ratio-btn" data-ratio="3:4">3:4<br/><small>小红书</small></button>
+          <button class="ratio-btn" data-ratio="1:1">1:1<br/><small>正方形</small></button>
+        </div>
+      </div>
+      <div class="setting-group">
+        <label>当前 Slide 背景色</label>
+        <div class="bg-options">
+          <button class="bg-btn active" data-bg="#ffffff" style="background:#ffffff; border: 2px solid #ccc;">白色</button>
+          <button class="bg-btn" data-bg="#f8f5f0" style="background:#f8f5f0;">米色</button>
+          <button class="bg-btn" data-bg="#1e1e2e" style="background:#1e1e2e; color:#fff;">深色</button>
+          <button class="bg-btn" data-bg="#fdf6e3" style="background:#fdf6e3;">暖白</button>
+          <button class="bg-btn" data-bg="#f0f4ff" style="background:#f0f4ff;">淡蓝</button>
+          <button class="bg-btn custom-bg-btn" id="customBgBtn">
+            <input type="color" id="bgColorPicker" value="#ffffff"/>
+            自定义
+          </button>
+        </div>
+      </div>
+      <div class="setting-group">
+        <label>摄像头大小</label>
+        <div class="cam-size-options">
+          <button class="cam-btn active" data-camsize="sm">小</button>
+          <button class="cam-btn" data-camsize="md">中</button>
+          <button class="cam-btn" data-camsize="lg">大</button>
+          <button class="cam-btn" data-camsize="hidden">隐藏</button>
+        </div>
+      </div>
+      <div class="setting-group toggle-group">
+        <label>鼠标高亮</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="mouseHighlightToggle" checked/>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="setting-group toggle-group">
+        <label>手绘风格</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="roughStyleToggle" checked/>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== IMAGE UPLOAD (hidden) ===== -->
+<input type="file" id="imageUpload" accept="image/*" style="display:none"/>
+
+<!-- ===== SCRIPTS ===== -->
+<script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.js"></script>
+<!-- FFmpeg WASM for WebM→MP4 conversion -->
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
