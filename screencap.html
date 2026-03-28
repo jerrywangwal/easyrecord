@@ -123,12 +123,14 @@
     /* ===== MAIN AREA ===== */
     .main-area {
       position: fixed;
-      top: var(--topbar-h); left: 0; right: 0; bottom: 0;
+      top: var(--topbar-h); left: 0; right: 0;
+      bottom: 80px; /* 留给 bottom-controls */
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      padding: 16px 24px;
     }
 
     /* ===== PREVIEW CONTAINER ===== */
@@ -140,8 +142,8 @@
       overflow: hidden;
       box-shadow: 0 8px 48px rgba(0,0,0,0.6);
       border: 2px solid var(--border);
-      max-width: calc(100vw - 48px);
-      max-height: calc(100vh - var(--topbar-h) - 48px);
+      width: 100%;
+      height: 100%;
     }
 
     .preview-container.recording-active {
@@ -156,6 +158,11 @@
       height: 100%;
       object-fit: contain;
       background: #000;
+    }
+
+    /* 预览视频：录制中让视频充满容器 */
+    .preview-container.recording-active #screenPreview {
+      object-fit: contain;
     }
 
     /* ===== IDLE STATE (no screen selected) ===== */
@@ -514,8 +521,7 @@
 <main class="main-area" id="mainArea">
 
   <!-- Preview container -->
-  <div class="preview-container" id="previewContainer"
-       style="width: calc(100% - 48px); height: calc(100vh - var(--topbar-h) - 96px);">
+  <div class="preview-container" id="previewContainer">
 
     <!-- Screen video preview -->
     <video id="screenPreview" autoplay muted playsinline></video>
@@ -961,17 +967,16 @@
       let remaining = sec;
 
       const tick = () => {
-        countdownNum.textContent = remaining;
-        // Reset animation
-        countdownNum.style.animation = 'none';
-        countdownNum.offsetHeight; // reflow
-        countdownNum.style.animation = '';
-
         if (remaining <= 0) {
           countdownOverlay.classList.add('hidden');
           resolve();
           return;
         }
+        countdownNum.textContent = remaining;
+        // Reset animation
+        countdownNum.style.animation = 'none';
+        countdownNum.offsetHeight; // reflow
+        countdownNum.style.animation = '';
         remaining--;
         setTimeout(tick, 1000);
       };
@@ -1008,19 +1013,7 @@
 
     await runCountdown(state.countdownSec);
 
-    // Build combined stream (screen + cam overlay is done in canvas compositing OR
-    // we record screen stream and overlay PiP in the recording via canvas)
-    // For simplicity: record screen stream directly, cam PiP is composited via canvas
-    const tracks = [];
-
-    // Screen video
-    state.screenStream.getVideoTracks().forEach(t => tracks.push(t));
-
-    // System audio (if captured)
-    state.screenStream.getAudioTracks().forEach(t => tracks.push(t));
-
-    // We use canvas compositing to merge cam into the recording
-    // Create a composite stream
+    // 用 Canvas 合成屏幕 + 摄像头 PiP 为一路流
     const compositeStream = await buildCompositeStream();
 
     const mimeTypes = [
@@ -1058,31 +1051,28 @@
   }
 
   // ===== CANVAS COMPOSITING =====
-  // We use an offscreen canvas to merge screen + cam PiP into one stream
+  // 用离屏 Canvas 将屏幕流 + 摄像头 PiP 合成为一路录制流
   let compositeCanvas, compositeCtx, compositeAnimFrame;
   let compositeWidth = 1920, compositeHeight = 1080;
 
   async function buildCompositeStream() {
-    // Get screen dimensions from the stream
+    // 从已在预览中播放的 screenPreview 读取分辨率
     const videoTrack = state.screenStream.getVideoTracks()[0];
     const settings = videoTrack.getSettings();
-    compositeWidth  = settings.width  || 1920;
-    compositeHeight = settings.height || 1080;
+    compositeWidth  = settings.width  || screenPreview.videoWidth  || 1920;
+    compositeHeight = settings.height || screenPreview.videoHeight || 1080;
 
     compositeCanvas = document.createElement('canvas');
     compositeCanvas.width  = compositeWidth;
     compositeCanvas.height = compositeHeight;
     compositeCtx = compositeCanvas.getContext('2d');
 
-    // Temporary video element to read screen stream
-    const screenVid = document.createElement('video');
-    screenVid.srcObject = state.screenStream;
-    screenVid.autoplay = true;
-    screenVid.muted = true;
-    await new Promise(r => screenVid.onloadedmetadata = r);
-    screenVid.play();
+    // 确保 screenPreview 已开始播放
+    if (screenPreview.readyState < 2) {
+      await new Promise(r => { screenPreview.oncanplay = r; });
+    }
 
-    // Get PiP screen-relative position and size
+    // 获取 PiP 在录制帧中的坐标（按屏幕分辨率缩放）
     function getScaledPip() {
       if (!state.camOn || pipWrapper.classList.contains('pip-hidden')) return null;
 
@@ -1104,16 +1094,16 @@
     }
 
     function drawFrame() {
-      // Draw screen
-      compositeCtx.drawImage(screenVid, 0, 0, compositeWidth, compositeHeight);
+      // 绘制屏幕内容（直接复用已在播放的预览 video 元素）
+      compositeCtx.drawImage(screenPreview, 0, 0, compositeWidth, compositeHeight);
 
-      // Draw PiP cam overlay
+      // 绘制摄像头 PiP
       if (state.camOn && pipVideo.readyState >= 2) {
         const pip = getScaledPip();
         if (pip) {
           compositeCtx.save();
 
-          // Clip to shape
+          // 裁剪为对应形状
           compositeCtx.beginPath();
           if (pip.shape === 'circle') {
             const rx = pip.w / 2, ry = pip.h / 2;
@@ -1127,20 +1117,20 @@
           }
           compositeCtx.clip();
 
-          // Draw camera (mirrored)
-          compositeCtx.save();
+          // 绘制摄像头画面（支持镜像）
           if (state.pipMirror) {
+            compositeCtx.save();
             compositeCtx.translate(pip.x + pip.w, pip.y);
             compositeCtx.scale(-1, 1);
             compositeCtx.drawImage(pipVideo, 0, 0, pip.w, pip.h);
+            compositeCtx.restore();
           } else {
             compositeCtx.drawImage(pipVideo, pip.x, pip.y, pip.w, pip.h);
           }
-          compositeCtx.restore();
 
           compositeCtx.restore();
 
-          // Draw border
+          // 绘制边框
           compositeCtx.save();
           compositeCtx.beginPath();
           if (pip.shape === 'circle') {
@@ -1165,13 +1155,11 @@
 
     drawFrame();
 
-    // Build audio tracks
-    const audioTracks = [];
-    state.screenStream.getAudioTracks().forEach(t => audioTracks.push(t));
+    // 音频轨道：取屏幕流的系统音
+    const audioTracks = [...state.screenStream.getAudioTracks()];
 
     const videoStream = compositeCanvas.captureStream(30);
-    const combinedTracks = [...videoStream.getTracks(), ...audioTracks];
-    return new MediaStream(combinedTracks);
+    return new MediaStream([...videoStream.getTracks(), ...audioTracks]);
   }
 
   // ===== PAUSE =====
@@ -1211,12 +1199,13 @@
     startBtn.disabled = false;
     pauseBtn.classList.add('hidden');
     stopBtn.classList.add('hidden');
+    // 重置暂停按钮文字
     pauseBtn.innerHTML = `
       <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
       暂停
     `;
     state.isPaused = false;
-    setStatus('ready');
+    setStatus(state.screenStream ? 'ready' : 'idle');
   }
 
   // ===== ON RECORDING STOPPED =====
@@ -1346,6 +1335,8 @@
   // ===== INIT =====
   setStatus('idle');
   setPipShape('circle');
+  countdownChip.classList.add('active'); // 默认3秒倒计时为开启状态
+  micChip.classList.add('active');       // 默认系统音频开启
 
 })();
 </script>
