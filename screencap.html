@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EasyRecord - 录屏工具</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #6C63FF;
+      --accent-hover: #5a52e0;
+      --danger: #e03131;
+      --danger-hover: #c92a2a;
+      --success: #2f9e44;
+      --bg: #0f0f13;
+      --surface: #1a1a24;
+      --surface2: #22222f;
+      --border: #2e2e3e;
+      --text: #f0f0f5;
+      --text-muted: #8888a0;
+      --topbar-h: 60px;
+      --radius: 10px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      color: var(--text);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ===== TOPBAR ===== */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--topbar-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      z-index: 200;
+      box-shadow: 0 1px 16px rgba(0,0,0,0.3);
+    }
+
+    .topbar-left { display: flex; align-items: center; min-width: 180px; gap: 12px; }
+    .topbar-center { flex: 1; display: flex; justify-content: center; align-items: center; gap: 8px; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; min-width: 280px; justify-content: flex-end; }
+
+    .logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+    .logo-text { font-size: 17px; font-weight: 700; color: var(--accent); letter-spacing: -0.3px; }
+    .logo-badge {
+      font-size: 10px; font-weight: 600;
+      background: rgba(108,99,255,0.18);
+      color: var(--accent);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(108,99,255,0.3);
+    }
+
+    .back-btn {
+      display: flex; align-items: center; gap: 5px;
+      background: none; border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 13px;
+      padding: 5px 10px; border-radius: 7px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Status indicator */
+    .status-bar {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--text-muted);
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-muted);
+      transition: background 0.3s;
+    }
+    .status-dot.ready { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .status-dot.recording { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: blink 1s infinite; }
+    .status-dot.paused { background: #f08c00; box-shadow: 0 0 6px #f08c00; }
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+    .rec-timer {
+      font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
+      color: var(--text); letter-spacing: 0.5px;
+    }
+    .rec-timer.active { color: var(--danger); }
+
+    /* Settings chips */
+    .setting-chip {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 7px; padding: 5px 10px;
+      font-size: 12px; color: var(--text-muted); cursor: pointer;
+      transition: all 0.15s; position: relative;
+    }
+    .setting-chip:hover { border-color: var(--accent); color: var(--text); }
+    .setting-chip.active { border-color: var(--accent); color: var(--accent); background: rgba(108,99,255,0.1); }
+    .setting-chip svg { flex-shrink: 0; }
+
+    /* Buttons */
+    .btn {
+      display: flex; align-items: center; gap: 6px;
+      border: none; border-radius: 8px; cursor: pointer;
+      font-size: 14px; font-weight: 600; padding: 8px 16px;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(108,99,255,0.4); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: var(--danger-hover); }
+    .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+    /* ===== MAIN AREA ===== */
+    .main-area {
+      position: fixed;
+      top: var(--topbar-h); left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* ===== PREVIEW CONTAINER ===== */
+    /* 预览区域：显示屏幕捕获的视频流 */
+    .preview-container {
+      position: relative;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+      border: 2px solid var(--border);
+      max-width: calc(100vw - 48px);
+      max-height: calc(100vh - var(--topbar-h) - 48px);
+    }
+
+    .preview-container.recording-active {
+      border-color: var(--danger);
+      box-shadow: 0 8px 48px rgba(224,49,49,0.25), 0 0 0 2px rgba(224,49,49,0.15);
+    }
+
+    /* 屏幕预览视频 */
+    #screenPreview {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+    }
+
+    /* ===== IDLE STATE (no screen selected) ===== */
+    .idle-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background: radial-gradient(ellipse at center, #1a1a2e 0%, #0f0f13 100%);
+    }
+    .idle-overlay.hidden { display: none; }
+
+    .idle-icon {
+      width: 80px; height: 80px;
+      background: rgba(108,99,255,0.12);
+      border: 2px dashed rgba(108,99,255,0.4);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent);
+    }
+
+    .idle-title {
+      font-size: 20px; font-weight: 700; color: var(--text);
+      text-align: center;
+    }
+    .idle-desc {
+      font-size: 13px; color: var(--text-muted);
+      text-align: center; line-height: 1.6; max-width: 280px;
+    }
+
+    /* ===== WEBCAM PIP ===== */
+    .pip-wrapper {
+      position: absolute;
+      cursor: move;
+      z-index: 50;
+      /* 初始位置由JS控制 */
+      touch-action: none;
+    }
+
+    .pip-inner {
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 3px solid white;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      background: #1a1a2e;
+      -webkit-mask-image: -webkit-radial-gradient(circle, white 100%, black 100%);
+      mask-image: radial-gradient(circle, white 100%, black 100%);
+    }
+
+    .pip-inner.shape-rect {
+      border-radius: 12px;
+    }
+    .pip-inner.shape-rounded {
+      border-radius: 28px;
+    }
+
+    .pip-inner video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      display: block;
+    }
+
+    /* PiP resize handle */
+    .pip-resize-handle {
+      position: absolute;
+      bottom: 4px; right: 4px;
+      width: 20px; height: 20px;
+      background: rgba(108,99,255,0.85);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: nwse-resize;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 51;
+      touch-action: none;
+    }
+    .pip-wrapper:hover .pip-resize-handle { opacity: 1; }
+
+    /* PiP shape toggle */
+    .pip-shape-btn {
+      position: absolute;
+      top: 4px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      color: white;
+      font-size: 10px; padding: 2px 6px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+      z-index: 51;
+      pointer-events: auto;
+    }
+    .pip-wrapper:hover .pip-shape-btn { opacity: 1; }
+
+    /* PiP off state */
+    .pip-wrapper.pip-hidden { display: none; }
+
+    /* ===== COUNTDOWN OVERLAY ===== */
+    .countdown-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+      border-radius: 10px;
+    }
+    .countdown-overlay.hidden { display: none; }
+    .countdown-num {
+      font-size: 120px; font-weight: 900;
+      color: white;
+      text-shadow: 0 0 40px rgba(108,99,255,0.8);
+      animation: countPulse 1s ease-in-out;
+    }
+    @keyframes countPulse {
+      0% { transform: scale(1.4); opacity: 0; }
+      30% { transform: scale(1); opacity: 1; }
+      80% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(0.7); opacity: 0; }
+    }
+
+    /* ===== BOTTOM CONTROLS ===== */
+    .bottom-controls {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 10px 16px;
+      box-shadow: var(--shadow);
+      z-index: 150;
+      transition: opacity 0.3s;
+    }
+
+    .bottom-controls.faded { opacity: 0.3; }
+    .bottom-controls:hover { opacity: 1; }
+
+    .ctrl-divider { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+
+    /* Cam shape selector */
+    .shape-select {
+      display: flex; gap: 4px;
+    }
+    .shape-opt {
+      width: 28px; height: 28px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); transition: all 0.15s; font-size: 11px;
+    }
+    .shape-opt:hover { border-color: var(--accent); color: var(--accent); }
+    .shape-opt.active { background: rgba(108,99,255,0.15); border-color: var(--accent); color: var(--accent); }
+
+    /* Size slider */
+    .size-label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+    input[type=range].pip-size-slider {
+      -webkit-appearance: none;
+      width: 80px; height: 4px;
+      background: var(--border); border-radius: 2px; cursor: pointer;
+      outline: none;
+    }
+    input[type=range].pip-size-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%; background: var(--accent); cursor: pointer;
+      box-shadow: 0 0 4px rgba(108,99,255,0.5);
+    }
+
+    /* Cam toggle in bottom */
+    .cam-toggle-btn {
+      width: 32px; height: 32px;
+      border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text-muted);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .cam-toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .cam-toggle-btn.cam-on { background: rgba(108,99,255,0.15); border-color: var(--accent); color: var(--accent); }
+
+    /* ===== RESULT MODAL ===== */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 300;
+      backdrop-filter: blur(6px);
+    }
+    .modal-overlay.hidden { display: none; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: min(600px, 95vw);
+      max-height: 85vh;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      box-shadow: 0 20px 80px rgba(0,0,0,0.6);
+    }
+
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-header h3 { font-size: 16px; font-weight: 700; }
+
+    .modal-close {
+      width: 30px; height: 30px; border-radius: 8px;
+      border: none; background: var(--surface2); color: var(--text-muted);
+      cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .modal-close:hover { background: var(--danger); color: white; }
+
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+
+    .result-video-wrap {
+      width: 100%;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      aspect-ratio: 16/9;
+    }
+    .result-video-wrap video {
+      width: 100%; height: 100%; object-fit: contain;
+    }
+
+    .result-info {
+      display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .result-tag {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--text-muted);
+    }
+    .result-tag span { color: var(--text); font-weight: 600; }
+
+    .result-actions {
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+
+    /* Converting indicator */
+    .converting-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px;
+      background: rgba(108,99,255,0.08);
+      border: 1px solid rgba(108,99,255,0.2);
+      border-radius: 8px;
+      font-size: 13px; color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .converting-bar.hidden { display: none; }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(108,99,255,0.3);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== TOOLTIP ===== */
+    [title] { position: relative; }
+
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ===== PERMISSION ERROR ===== */
+    .error-toast {
+      position: fixed;
+      bottom: 100px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--danger);
+      color: white; font-size: 13px; font-weight: 500;
+      padding: 10px 20px; border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(224,49,49,0.4);
+      z-index: 400;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .error-toast.show { opacity: 1; pointer-events: auto; }
+  </style>
+</head>
+<body>
+
+<!-- ===== TOPBAR ===== -->
+<header class="topbar">
+  <div class="topbar-left">
+    <a href="index.html" class="back-btn" title="返回白板">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+      白板
+    </a>
+    <a class="logo" href="#">
+      <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+        <rect width="28" height="28" rx="7" fill="#6C63FF"/>
+        <rect x="5" y="8" width="14" height="10" rx="2" fill="white" opacity="0.9"/>
+        <path d="M19 11.5L23 9v8l-4-2.5v-3z" fill="white"/>
+      </svg>
+      <span class="logo-text">EasyRecord</span>
+      <span class="logo-badge">录屏</span>
+    </a>
+  </div>
+
+  <div class="topbar-center">
+    <div class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">未开始</span>
+      <span class="rec-timer hidden" id="recTimer">00:00</span>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <!-- Countdown selector -->
+    <div class="setting-chip" id="countdownChip" title="倒计时设置">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+      <span id="countdownLabel">3秒</span>
+    </div>
+
+    <!-- Mic toggle -->
+    <div class="setting-chip" id="micChip" title="系统音频">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" id="micIcon"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+      <span>系统音</span>
+    </div>
+
+    <button class="btn btn-primary" id="startBtn">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7L8 5z"/></svg>
+      开始录制
+    </button>
+    <button class="btn btn-ghost hidden" id="pauseBtn">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      暂停
+    </button>
+    <button class="btn btn-danger hidden" id="stopBtn">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+      停止
+    </button>
+  </div>
+</header>
+
+<!-- ===== MAIN AREA ===== -->
+<main class="main-area" id="mainArea">
+
+  <!-- Preview container -->
+  <div class="preview-container" id="previewContainer"
+       style="width: calc(100% - 48px); height: calc(100vh - var(--topbar-h) - 96px);">
+
+    <!-- Screen video preview -->
+    <video id="screenPreview" autoplay muted playsinline></video>
+
+    <!-- Idle overlay (shown when no screen selected) -->
+    <div class="idle-overlay" id="idleOverlay">
+      <div class="idle-icon">
+        <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor"><path d="M20 3H4v10c0 1.1.9 2 2 2h6v2H8v2h8v-2h-4v-2h6c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 10H6V5h14v8zM21 19h2v2h-2zm-4 0h2v2h-2zm-4 0h2v2h-2z"/></svg>
+      </div>
+      <div class="idle-title">选择录制屏幕</div>
+      <div class="idle-desc">点击「开始录制」选择要录制的屏幕、窗口或标签页</div>
+      <button class="btn btn-primary" id="selectScreenBtn">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20 3H4v10c0 1.1.9 2 2 2h6v2H8v2h8v-2h-4v-2h6c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 10H6V5h14v8z"/></svg>
+        选择屏幕
+      </button>
+    </div>
+
+    <!-- Countdown overlay -->
+    <div class="countdown-overlay hidden" id="countdownOverlay">
+      <div class="countdown-num" id="countdownNum">3</div>
+    </div>
+
+    <!-- Webcam PiP -->
+    <div class="pip-wrapper pip-hidden" id="pipWrapper" style="width:160px;height:160px;">
+      <div class="pip-inner" id="pipInner">
+        <video id="pipVideo" autoplay muted playsinline></video>
+      </div>
+      <div class="pip-resize-handle" id="pipResizeHandle">
+        <svg viewBox="0 0 10 10" width="8" height="8"><path d="M2 8 L8 2 M5 8 L8 5" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <button class="pip-shape-btn" id="pipShapeBtn">○ 形状</button>
+    </div>
+
+  </div>
+
+  <!-- Error toast -->
+  <div class="error-toast" id="errorToast"></div>
+
+</main>
+
+<!-- ===== BOTTOM CONTROLS ===== -->
+<div class="bottom-controls" id="bottomControls">
+  <!-- Cam toggle -->
+  <button class="cam-toggle-btn" id="camToggleBtn" title="开关摄像头">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/></svg>
+  </button>
+
+  <div class="ctrl-divider"></div>
+
+  <!-- PiP shape -->
+  <div class="shape-select" id="shapeSelect">
+    <div class="shape-opt active" data-shape="circle" title="圆形">
+      <svg viewBox="0 0 16 16" width="16" height="16"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+    </div>
+    <div class="shape-opt" data-shape="rounded" title="圆角矩形">
+      <svg viewBox="0 0 16 16" width="16" height="16"><rect x="2" y="3" width="12" height="10" rx="3" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+    </div>
+    <div class="shape-opt" data-shape="rect" title="矩形">
+      <svg viewBox="0 0 16 16" width="16" height="16"><rect x="2" y="3" width="12" height="10" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+    </div>
+  </div>
+
+  <div class="ctrl-divider"></div>
+
+  <!-- PiP size -->
+  <span class="size-label">摄像头大小</span>
+  <input type="range" class="pip-size-slider" id="pipSizeSlider" min="80" max="320" value="160" step="10"/>
+
+  <div class="ctrl-divider"></div>
+
+  <!-- Mirror toggle -->
+  <div class="setting-chip" id="mirrorChip" title="镜像摄像头" style="padding: 4px 8px; font-size: 11px;">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M15 21h2v-2h-2v2zm4-12h2V7h-2v2zM3 5v14c0 1.1.9 2 2 2h4v-2H5V5h4V3H5c-1.1 0-2 .9-2 2zm16-2v2h2c0-1.1-.9-2-2-2zm-8 20h2V1h-2v22zm8-6h2v-2h-2v2zM15 5h2V3h-2v2zm4 8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2z"/></svg>
+    镜像
+  </div>
+</div>
+
+<!-- ===== RESULT MODAL ===== -->
+<div class="modal-overlay hidden" id="resultModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🎬 录制完成</h3>
+      <button class="modal-close" id="closeResult">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="converting-bar hidden" id="convertingBar">
+        <div class="spinner"></div>
+        <span id="convertingText">正在转换为 MP4...</span>
+      </div>
+      <div class="result-video-wrap">
+        <video id="resultVideo" controls></video>
+      </div>
+      <div class="result-info" id="resultInfo"></div>
+      <div class="result-actions">
+        <button class="btn btn-primary" id="downloadWebmBtn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5z"/></svg>
+          下载 WebM
+        </button>
+        <button class="btn btn-ghost" id="downloadMp4Btn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5z"/></svg>
+          转换并下载 MP4
+        </button>
+        <button class="btn btn-ghost" id="recordAgainBtn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+          重新录制
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FFmpeg WASM -->
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+
+<script>
+(function() {
+  'use strict';
+
+  // ===== STATE =====
+  const state = {
+    screenStream: null,
+    micStream: null,
+    camStream: null,
+    mediaRecorder: null,
+    recordedChunks: [],
+    isRecording: false,
+    isPaused: false,
+    recStartTime: null,
+    recTimerInterval: null,
+    pausedDuration: 0,
+    pauseStart: null,
+    // PiP
+    camOn: false,
+    pipShape: 'circle',    // circle | rounded | rect
+    pipSize: 160,
+    pipMirror: true,
+    // Countdown
+    countdownSec: 3,
+    // Mic / system audio
+    systemAudio: true,
+    // result
+    resultBlob: null,
+    resultDuration: 0,
+  };
+
+  // ===== DOM =====
+  const startBtn         = document.getElementById('startBtn');
+  const pauseBtn         = document.getElementById('pauseBtn');
+  const stopBtn          = document.getElementById('stopBtn');
+  const selectScreenBtn  = document.getElementById('selectScreenBtn');
+  const camToggleBtn     = document.getElementById('camToggleBtn');
+  const statusDot        = document.getElementById('statusDot');
+  const statusText       = document.getElementById('statusText');
+  const recTimer         = document.getElementById('recTimer');
+  const idleOverlay      = document.getElementById('idleOverlay');
+  const previewContainer = document.getElementById('previewContainer');
+  const screenPreview    = document.getElementById('screenPreview');
+  const pipWrapper       = document.getElementById('pipWrapper');
+  const pipInner         = document.getElementById('pipInner');
+  const pipVideo         = document.getElementById('pipVideo');
+  const pipResizeHandle  = document.getElementById('pipResizeHandle');
+  const pipShapeBtn      = document.getElementById('pipShapeBtn');
+  const pipSizeSlider    = document.getElementById('pipSizeSlider');
+  const countdownOverlay = document.getElementById('countdownOverlay');
+  const countdownNum     = document.getElementById('countdownNum');
+  const resultModal      = document.getElementById('resultModal');
+  const resultVideo      = document.getElementById('resultVideo');
+  const resultInfo       = document.getElementById('resultInfo');
+  const downloadWebmBtn  = document.getElementById('downloadWebmBtn');
+  const downloadMp4Btn   = document.getElementById('downloadMp4Btn');
+  const recordAgainBtn   = document.getElementById('recordAgainBtn');
+  const closeResult      = document.getElementById('closeResult');
+  const convertingBar    = document.getElementById('convertingBar');
+  const convertingText   = document.getElementById('convertingText');
+  const countdownChip    = document.getElementById('countdownChip');
+  const countdownLabel   = document.getElementById('countdownLabel');
+  const micChip          = document.getElementById('micChip');
+  const mirrorChip       = document.getElementById('mirrorChip');
+  const errorToast       = document.getElementById('errorToast');
+
+  // ===== UTILS =====
+  function showToast(msg, duration = 3000) {
+    errorToast.textContent = msg;
+    errorToast.classList.add('show');
+    setTimeout(() => errorToast.classList.remove('show'), duration);
+  }
+
+  function formatTime(sec) {
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = Math.floor(sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  // ===== STATUS =====
+  function setStatus(s) {
+    // s: 'idle' | 'ready' | 'countdown' | 'recording' | 'paused' | 'stopped'
+    statusDot.className = 'status-dot';
+    recTimer.classList.add('hidden');
+    recTimer.classList.remove('active');
+
+    switch(s) {
+      case 'idle':
+        statusText.textContent = '未开始';
+        break;
+      case 'ready':
+        statusDot.classList.add('ready');
+        statusText.textContent = '已选择屏幕，准备录制';
+        break;
+      case 'countdown':
+        statusDot.classList.add('ready');
+        statusText.textContent = '即将开始...';
+        break;
+      case 'recording':
+        statusDot.classList.add('recording');
+        statusText.textContent = '录制中';
+        recTimer.classList.remove('hidden');
+        recTimer.classList.add('active');
+        break;
+      case 'paused':
+        statusDot.classList.add('paused');
+        statusText.textContent = '已暂停';
+        recTimer.classList.remove('hidden');
+        break;
+    }
+  }
+
+  // ===== SCREEN CAPTURE =====
+  async function selectScreen() {
+    try {
+      const constraints = {
+        video: { cursor: 'always' },
+        audio: state.systemAudio,
+      };
+      const stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+      state.screenStream = stream;
+
+      // Show preview
+      screenPreview.srcObject = stream;
+      idleOverlay.classList.add('hidden');
+      setStatus('ready');
+
+      // Handle stream end (user stops sharing from browser UI)
+      stream.getVideoTracks()[0].addEventListener('ended', () => {
+        handleStreamEnd();
+      });
+
+      // Update start button
+      startBtn.querySelector('svg + *') && null; // no-op
+      startBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+        开始录制
+      `;
+
+    } catch(e) {
+      if (e.name !== 'NotAllowedError') {
+        showToast('无法获取屏幕：' + e.message);
+      }
+    }
+  }
+
+  function handleStreamEnd() {
+    if (state.isRecording) stopRecording();
+    state.screenStream = null;
+    screenPreview.srcObject = null;
+    idleOverlay.classList.remove('hidden');
+    setStatus('idle');
+  }
+
+  // ===== WEBCAM =====
+  async function toggleCam() {
+    if (state.camOn) {
+      // Turn off
+      if (state.camStream) {
+        state.camStream.getTracks().forEach(t => t.stop());
+        state.camStream = null;
+      }
+      pipVideo.srcObject = null;
+      pipWrapper.classList.add('pip-hidden');
+      camToggleBtn.classList.remove('cam-on');
+      state.camOn = false;
+    } else {
+      // Turn on
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false,
+        });
+        state.camStream = stream;
+        pipVideo.srcObject = stream;
+        state.camOn = true;
+        camToggleBtn.classList.add('cam-on');
+        pipWrapper.classList.remove('pip-hidden');
+        applyCamMirror();
+        // 初次定位到右下角
+        requestAnimationFrame(() => positionPipDefault());
+      } catch(e) {
+        showToast('无法访问摄像头：' + e.message);
+      }
+    }
+  }
+
+  function applyCamMirror() {
+    pipVideo.style.transform = state.pipMirror ? 'scaleX(-1)' : 'scaleX(1)';
+  }
+
+  // ===== PIP POSITION =====
+  function getContainerRect() {
+    return previewContainer.getBoundingClientRect();
+  }
+
+  function positionPipDefault() {
+    const cr = getContainerRect();
+    const size = state.pipSize;
+    const margin = 16;
+    const maxX = cr.width  - size - margin;
+    const maxY = cr.height - size - margin;
+    pipWrapper.style.left = Math.max(margin, maxX) + 'px';
+    pipWrapper.style.top  = Math.max(margin, maxY) + 'px';
+  }
+
+  function clampPip() {
+    if (pipWrapper.classList.contains('pip-hidden')) return;
+    const cr = getContainerRect();
+    const size = state.pipSize;
+    const margin = 8;
+    const minX = margin, minY = margin;
+    const maxX = cr.width  - size - margin;
+    const maxY = cr.height - size - margin;
+    let left = pipWrapper.offsetLeft;
+    let top  = pipWrapper.offsetTop;
+    if (left < minX || left > maxX || top < minY || top > maxY) {
+      pipWrapper.style.left = Math.max(minX, Math.min(maxX, left)) + 'px';
+      pipWrapper.style.top  = Math.max(minY, Math.min(maxY, top))  + 'px';
+    }
+  }
+
+  // ===== PIP DRAG =====
+  let pipDragging = false;
+  let pipDragStartX, pipDragStartY, pipDragLeft, pipDragTop;
+
+  pipWrapper.addEventListener('pointerdown', (e) => {
+    if (e.target === pipResizeHandle || e.target.closest('.pip-resize-handle')) return;
+    if (e.target === pipShapeBtn) return;
+    pipDragging = true;
+    pipDragStartX = e.clientX;
+    pipDragStartY = e.clientY;
+    pipDragLeft = pipWrapper.offsetLeft;
+    pipDragTop  = pipWrapper.offsetTop;
+    pipWrapper.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  pipWrapper.addEventListener('pointermove', (e) => {
+    if (!pipDragging) return;
+    const cr = getContainerRect();
+    const size = state.pipSize;
+    const margin = 8;
+    const dx = e.clientX - pipDragStartX;
+    const dy = e.clientY - pipDragStartY;
+    const nx = Math.max(margin, Math.min(cr.width  - size - margin, pipDragLeft + dx));
+    const ny = Math.max(margin, Math.min(cr.height - size - margin, pipDragTop  + dy));
+    pipWrapper.style.left = nx + 'px';
+    pipWrapper.style.top  = ny + 'px';
+  });
+
+  pipWrapper.addEventListener('pointerup',    () => { pipDragging = false; });
+  pipWrapper.addEventListener('pointercancel',() => { pipDragging = false; });
+
+  // ===== PIP RESIZE =====
+  let pipResizing = false;
+  let pipResizeStartX, pipResizeStartY, pipResizeStartSize;
+  const PIP_MIN = 60, PIP_MAX = 400;
+
+  pipResizeHandle.addEventListener('pointerdown', (e) => {
+    pipResizing = true;
+    pipResizeStartX = e.clientX;
+    pipResizeStartY = e.clientY;
+    pipResizeStartSize = state.pipSize;
+    pipResizeHandle.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  document.addEventListener('pointermove', (e) => {
+    if (!pipResizing) return;
+    const delta = (e.clientX - pipResizeStartX + e.clientY - pipResizeStartY) / 2;
+    const newSize = Math.max(PIP_MIN, Math.min(PIP_MAX, pipResizeStartSize + delta));
+    state.pipSize = Math.round(newSize);
+    pipWrapper.style.width  = state.pipSize + 'px';
+    pipWrapper.style.height = state.pipSize + 'px';
+    pipSizeSlider.value = state.pipSize;
+    clampPip();
+  });
+
+  document.addEventListener('pointerup', () => { pipResizing = false; });
+
+  // ===== PIP SIZE SLIDER =====
+  pipSizeSlider.addEventListener('input', () => {
+    state.pipSize = parseInt(pipSizeSlider.value);
+    pipWrapper.style.width  = state.pipSize + 'px';
+    pipWrapper.style.height = state.pipSize + 'px';
+    clampPip();
+  });
+
+  // ===== PIP SHAPE =====
+  function setPipShape(shape) {
+    state.pipShape = shape;
+    pipInner.classList.remove('shape-rect', 'shape-rounded');
+    if (shape === 'rect')    pipInner.classList.add('shape-rect');
+    if (shape === 'rounded') pipInner.classList.add('shape-rounded');
+
+    // Update shape select buttons
+    document.querySelectorAll('.shape-opt').forEach(o => {
+      o.classList.toggle('active', o.dataset.shape === shape);
+    });
+
+    // Update PiP shape button label
+    const labels = { circle: '○ 圆形', rounded: '▢ 圆角', rect: '□ 矩形' };
+    pipShapeBtn.textContent = labels[shape] || '○ 形状';
+  }
+
+  document.querySelectorAll('.shape-opt').forEach(opt => {
+    opt.addEventListener('click', () => setPipShape(opt.dataset.shape));
+  });
+
+  pipShapeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const shapes = ['circle', 'rounded', 'rect'];
+    const next = shapes[(shapes.indexOf(state.pipShape) + 1) % shapes.length];
+    setPipShape(next);
+  });
+
+  // ===== WINDOW RESIZE =====
+  window.addEventListener('resize', () => {
+    requestAnimationFrame(() => clampPip());
+  });
+
+  // ===== COUNTDOWN =====
+  function runCountdown(sec) {
+    return new Promise(resolve => {
+      if (sec <= 0) { resolve(); return; }
+      countdownOverlay.classList.remove('hidden');
+      let remaining = sec;
+
+      const tick = () => {
+        countdownNum.textContent = remaining;
+        // Reset animation
+        countdownNum.style.animation = 'none';
+        countdownNum.offsetHeight; // reflow
+        countdownNum.style.animation = '';
+
+        if (remaining <= 0) {
+          countdownOverlay.classList.add('hidden');
+          resolve();
+          return;
+        }
+        remaining--;
+        setTimeout(tick, 1000);
+      };
+      tick();
+    });
+  }
+
+  // ===== RECORDING TIMER =====
+  function startTimer() {
+    state.recStartTime = Date.now();
+    state.pausedDuration = 0;
+    state.recTimerInterval = setInterval(() => {
+      if (state.isPaused) return;
+      const elapsed = (Date.now() - state.recStartTime - state.pausedDuration) / 1000;
+      recTimer.textContent = formatTime(elapsed);
+      state.resultDuration = elapsed;
+    }, 500);
+  }
+
+  function stopTimer() {
+    clearInterval(state.recTimerInterval);
+    state.recTimerInterval = null;
+  }
+
+  // ===== START RECORDING =====
+  async function startRecording() {
+    if (!state.screenStream) {
+      await selectScreen();
+      if (!state.screenStream) return;
+    }
+
+    setStatus('countdown');
+    startBtn.disabled = true;
+
+    await runCountdown(state.countdownSec);
+
+    // Build combined stream (screen + cam overlay is done in canvas compositing OR
+    // we record screen stream and overlay PiP in the recording via canvas)
+    // For simplicity: record screen stream directly, cam PiP is composited via canvas
+    const tracks = [];
+
+    // Screen video
+    state.screenStream.getVideoTracks().forEach(t => tracks.push(t));
+
+    // System audio (if captured)
+    state.screenStream.getAudioTracks().forEach(t => tracks.push(t));
+
+    // We use canvas compositing to merge cam into the recording
+    // Create a composite stream
+    const compositeStream = await buildCompositeStream();
+
+    const mimeTypes = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+    ];
+    let mimeType = '';
+    for (const m of mimeTypes) {
+      if (MediaRecorder.isTypeSupported(m)) { mimeType = m; break; }
+    }
+
+    state.recordedChunks = [];
+    state.mediaRecorder = new MediaRecorder(compositeStream, {
+      mimeType: mimeType || undefined,
+      videoBitsPerSecond: 8_000_000,
+    });
+
+    state.mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) state.recordedChunks.push(e.data);
+    };
+
+    state.mediaRecorder.onstop = onRecordingStopped;
+
+    state.mediaRecorder.start(200);
+    state.isRecording = true;
+    state.isPaused = false;
+
+    setStatus('recording');
+    startBtn.classList.add('hidden');
+    pauseBtn.classList.remove('hidden');
+    stopBtn.classList.remove('hidden');
+    previewContainer.classList.add('recording-active');
+    startTimer();
+  }
+
+  // ===== CANVAS COMPOSITING =====
+  // We use an offscreen canvas to merge screen + cam PiP into one stream
+  let compositeCanvas, compositeCtx, compositeAnimFrame;
+  let compositeWidth = 1920, compositeHeight = 1080;
+
+  async function buildCompositeStream() {
+    // Get screen dimensions from the stream
+    const videoTrack = state.screenStream.getVideoTracks()[0];
+    const settings = videoTrack.getSettings();
+    compositeWidth  = settings.width  || 1920;
+    compositeHeight = settings.height || 1080;
+
+    compositeCanvas = document.createElement('canvas');
+    compositeCanvas.width  = compositeWidth;
+    compositeCanvas.height = compositeHeight;
+    compositeCtx = compositeCanvas.getContext('2d');
+
+    // Temporary video element to read screen stream
+    const screenVid = document.createElement('video');
+    screenVid.srcObject = state.screenStream;
+    screenVid.autoplay = true;
+    screenVid.muted = true;
+    await new Promise(r => screenVid.onloadedmetadata = r);
+    screenVid.play();
+
+    // Get PiP screen-relative position and size
+    function getScaledPip() {
+      if (!state.camOn || pipWrapper.classList.contains('pip-hidden')) return null;
+
+      const cr = getContainerRect();
+      const scaleX = compositeWidth  / cr.width;
+      const scaleY = compositeHeight / cr.height;
+
+      const px = pipWrapper.offsetLeft;
+      const py = pipWrapper.offsetTop;
+      const ps = state.pipSize;
+
+      return {
+        x: px * scaleX,
+        y: py * scaleY,
+        w: ps * scaleX,
+        h: ps * scaleY,
+        shape: state.pipShape,
+      };
+    }
+
+    function drawFrame() {
+      // Draw screen
+      compositeCtx.drawImage(screenVid, 0, 0, compositeWidth, compositeHeight);
+
+      // Draw PiP cam overlay
+      if (state.camOn && pipVideo.readyState >= 2) {
+        const pip = getScaledPip();
+        if (pip) {
+          compositeCtx.save();
+
+          // Clip to shape
+          compositeCtx.beginPath();
+          if (pip.shape === 'circle') {
+            const rx = pip.w / 2, ry = pip.h / 2;
+            compositeCtx.ellipse(pip.x + rx, pip.y + ry, rx, ry, 0, 0, Math.PI * 2);
+          } else if (pip.shape === 'rounded') {
+            const r = pip.w * 0.18;
+            compositeCtx.roundRect(pip.x, pip.y, pip.w, pip.h, r);
+          } else {
+            const r = pip.w * 0.05;
+            compositeCtx.roundRect(pip.x, pip.y, pip.w, pip.h, r);
+          }
+          compositeCtx.clip();
+
+          // Draw camera (mirrored)
+          compositeCtx.save();
+          if (state.pipMirror) {
+            compositeCtx.translate(pip.x + pip.w, pip.y);
+            compositeCtx.scale(-1, 1);
+            compositeCtx.drawImage(pipVideo, 0, 0, pip.w, pip.h);
+          } else {
+            compositeCtx.drawImage(pipVideo, pip.x, pip.y, pip.w, pip.h);
+          }
+          compositeCtx.restore();
+
+          compositeCtx.restore();
+
+          // Draw border
+          compositeCtx.save();
+          compositeCtx.beginPath();
+          if (pip.shape === 'circle') {
+            const rx = pip.w / 2, ry = pip.h / 2;
+            compositeCtx.ellipse(pip.x + rx, pip.y + ry, rx, ry, 0, 0, Math.PI * 2);
+          } else if (pip.shape === 'rounded') {
+            const r = pip.w * 0.18;
+            compositeCtx.roundRect(pip.x, pip.y, pip.w, pip.h, r);
+          } else {
+            const r = pip.w * 0.05;
+            compositeCtx.roundRect(pip.x, pip.y, pip.w, pip.h, r);
+          }
+          compositeCtx.strokeStyle = 'rgba(255,255,255,0.9)';
+          compositeCtx.lineWidth = Math.max(2, pip.w * 0.015);
+          compositeCtx.stroke();
+          compositeCtx.restore();
+        }
+      }
+
+      compositeAnimFrame = requestAnimationFrame(drawFrame);
+    }
+
+    drawFrame();
+
+    // Build audio tracks
+    const audioTracks = [];
+    state.screenStream.getAudioTracks().forEach(t => audioTracks.push(t));
+
+    const videoStream = compositeCanvas.captureStream(30);
+    const combinedTracks = [...videoStream.getTracks(), ...audioTracks];
+    return new MediaStream(combinedTracks);
+  }
+
+  // ===== PAUSE =====
+  function togglePause() {
+    if (!state.mediaRecorder) return;
+    if (state.isPaused) {
+      state.mediaRecorder.resume();
+      state.isPaused = false;
+      state.pausedDuration += Date.now() - state.pauseStart;
+      setStatus('recording');
+      pauseBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        暂停
+      `;
+    } else {
+      state.mediaRecorder.pause();
+      state.isPaused = true;
+      state.pauseStart = Date.now();
+      setStatus('paused');
+      pauseBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7L8 5z"/></svg>
+        继续
+      `;
+    }
+  }
+
+  // ===== STOP =====
+  function stopRecording() {
+    if (!state.mediaRecorder || !state.isRecording) return;
+    state.mediaRecorder.stop();
+    state.isRecording = false;
+    stopTimer();
+    cancelAnimationFrame(compositeAnimFrame);
+
+    previewContainer.classList.remove('recording-active');
+    startBtn.classList.remove('hidden');
+    startBtn.disabled = false;
+    pauseBtn.classList.add('hidden');
+    stopBtn.classList.add('hidden');
+    pauseBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      暂停
+    `;
+    state.isPaused = false;
+    setStatus('ready');
+  }
+
+  // ===== ON RECORDING STOPPED =====
+  function onRecordingStopped() {
+    const blob = new Blob(state.recordedChunks, { type: 'video/webm' });
+    state.resultBlob = blob;
+
+    const url = URL.createObjectURL(blob);
+    resultVideo.src = url;
+    resultVideo.load();
+
+    // Info
+    const sizeMB = (blob.size / 1024 / 1024).toFixed(1);
+    const dur = formatTime(state.resultDuration);
+    resultInfo.innerHTML = `
+      <div class="result-tag">时长 <span>${dur}</span></div>
+      <div class="result-tag">大小 <span>${sizeMB} MB</span></div>
+      <div class="result-tag">格式 <span>WebM</span></div>
+      <div class="result-tag">分辨率 <span>${compositeWidth}×${compositeHeight}</span></div>
+    `;
+
+    convertingBar.classList.add('hidden');
+    resultModal.classList.remove('hidden');
+  }
+
+  // ===== DOWNLOAD WEBM =====
+  downloadWebmBtn.addEventListener('click', () => {
+    if (!state.resultBlob) return;
+    const url = URL.createObjectURL(state.resultBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `recording_${Date.now()}.webm`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // ===== DOWNLOAD MP4 (FFmpeg) =====
+  downloadMp4Btn.addEventListener('click', async () => {
+    if (!state.resultBlob) return;
+    if (typeof FFmpeg === 'undefined' && typeof window.FFmpeg === 'undefined') {
+      showToast('FFmpeg 未加载，请检查网络后重试');
+      return;
+    }
+
+    downloadMp4Btn.disabled = true;
+    convertingBar.classList.remove('hidden');
+    convertingText.textContent = '正在加载转换器...';
+
+    try {
+      const { createFFmpeg, fetchFile } = FFmpeg || window.FFmpeg;
+      const ffmpeg = createFFmpeg({ log: false });
+      await ffmpeg.load();
+
+      convertingText.textContent = '正在转换为 MP4（可能需要 1-2 分钟）...';
+
+      const inputData = await state.resultBlob.arrayBuffer();
+      ffmpeg.FS('writeFile', 'input.webm', new Uint8Array(inputData));
+      await ffmpeg.run('-i', 'input.webm', '-c:v', 'libx264', '-crf', '23', '-preset', 'fast', '-c:a', 'aac', 'output.mp4');
+
+      const data = ffmpeg.FS('readFile', 'output.mp4');
+      const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+      const url = URL.createObjectURL(mp4Blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `recording_${Date.now()}.mp4`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      convertingText.textContent = '转换完成！';
+      setTimeout(() => convertingBar.classList.add('hidden'), 2000);
+    } catch(e) {
+      convertingBar.classList.add('hidden');
+      showToast('转换失败：' + e.message);
+    } finally {
+      downloadMp4Btn.disabled = false;
+    }
+  });
+
+  // ===== RECORD AGAIN =====
+  recordAgainBtn.addEventListener('click', () => {
+    resultModal.classList.add('hidden');
+    if (resultVideo.src) {
+      URL.revokeObjectURL(resultVideo.src);
+      resultVideo.src = '';
+    }
+    state.resultBlob = null;
+    state.recordedChunks = [];
+  });
+
+  closeResult.addEventListener('click', () => {
+    resultModal.classList.add('hidden');
+  });
+
+  // ===== COUNTDOWN CHIP (cycle 0→3→5→10→0) =====
+  const countdownOptions = [0, 3, 5, 10];
+  let countdownIdx = 1; // default 3s
+  countdownChip.addEventListener('click', () => {
+    countdownIdx = (countdownIdx + 1) % countdownOptions.length;
+    state.countdownSec = countdownOptions[countdownIdx];
+    countdownLabel.textContent = state.countdownSec === 0 ? '无延迟' : state.countdownSec + '秒';
+    countdownChip.classList.toggle('active', state.countdownSec > 0);
+  });
+
+  // ===== MIC CHIP =====
+  micChip.addEventListener('click', () => {
+    state.systemAudio = !state.systemAudio;
+    micChip.classList.toggle('active', state.systemAudio);
+    micChip.title = state.systemAudio ? '系统音频（已开启）' : '系统音频（已关闭）';
+  });
+
+  // ===== MIRROR CHIP =====
+  mirrorChip.addEventListener('click', () => {
+    state.pipMirror = !state.pipMirror;
+    mirrorChip.classList.toggle('active', state.pipMirror);
+    applyCamMirror();
+  });
+  mirrorChip.classList.add('active');
+
+  // ===== BUTTON EVENTS =====
+  startBtn.addEventListener('click', () => startRecording());
+  selectScreenBtn.addEventListener('click', () => selectScreen());
+  pauseBtn.addEventListener('click', () => togglePause());
+  stopBtn.addEventListener('click', () => stopRecording());
+  camToggleBtn.addEventListener('click', () => toggleCam());
+
+  // ===== INIT =====
+  setStatus('idle');
+  setPipShape('circle');
+
+})();
+</script>
+
+</body>
+</html>
