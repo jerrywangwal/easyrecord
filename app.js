@@ -77,11 +77,64 @@
     canvas.height = Math.floor(h);
     canvas.style.width = canvas.width + 'px';
     canvas.style.height = canvas.height + 'px';
+    // 同步 wrapper 尺寸，确保 getBoundingClientRect 准确（竖屏/小红书等比例下尤为重要）
+    wrapper.style.width  = canvas.width  + 'px';
+    wrapper.style.height = canvas.height + 'px';
     rc = null; // reset rough instance
     redraw();
+
+    // 比例改变后，重新夹入 PiP 到白板内（延迟等 layout 完成）
+    requestAnimationFrame(() => clampPipToCanvas());
   }
 
-  window.addEventListener('resize', resizeCanvas);
+  /**
+   * 将 PiP 夹入白板范围。
+   * 如果 PiP 当前在白板范围内，保持相对位置；超出边界才移入。
+   * 与 repositionPipToCanvas 的区别：不强制移到右下角。
+   */
+  function clampPipToCanvas() {
+    if (webcamPipWrapper.classList.contains('pip-hidden')) return;
+
+    const cr = getCanvasRectInArea();
+
+    // 约束尺寸
+    let pipSize = webcamPipWrapper.offsetWidth;
+    const maxPip = Math.floor(Math.min(cr.width, cr.height) * 0.40);
+    const minPip = 80;
+    pipSize = Math.max(minPip, Math.min(pipSize, maxPip));
+    webcamPipWrapper.style.width  = pipSize + 'px';
+    webcamPipWrapper.style.height = pipSize + 'px';
+    webcamPipWrapper.classList.remove('pip-md', 'pip-lg');
+    webcamPipWrapper.style.right  = 'auto';
+    webcamPipWrapper.style.bottom = 'auto';
+
+    const margin = 8;
+    const minX = cr.left   + margin;
+    const minY = cr.top    + margin;
+    const maxX = cr.right  - pipSize - margin;
+    const maxY = cr.bottom - pipSize - margin;
+
+    // 读取当前位置并夹入
+    let curLeft = webcamPipWrapper.offsetLeft;
+    let curTop  = webcamPipWrapper.offsetTop;
+
+    // 如果 left/top 未被 JS 设置（还是 CSS 默认 0），则定位到右下角
+    if (curLeft === 0 && curTop === 0) {
+      webcamPipWrapper.style.left = Math.max(minX, Math.min(maxX, cr.left + cr.width - pipSize - 16)) + 'px';
+      webcamPipWrapper.style.top  = Math.max(minY, Math.min(maxY, cr.top + cr.height - pipSize - 16)) + 'px';
+    } else {
+      webcamPipWrapper.style.left = Math.max(minX, Math.min(maxX, curLeft)) + 'px';
+      webcamPipWrapper.style.top  = Math.max(minY, Math.min(maxY, curTop))  + 'px';
+    }
+
+    syncHandlePos();
+    updatePipLastPos();
+  }
+
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+    // resizeCanvas 内已通过 requestAnimationFrame 调用 clampPipToCanvas
+  });
 
   // ===== DRAW ALL ELEMENTS =====
   function redraw() {
@@ -988,6 +1041,72 @@
   const webcamVideo = document.getElementById('webcamVideo');
   const canvasArea = document.getElementById('canvasArea');
 
+  // 记录 PiP 最后一次可见时的位置和尺寸（用于录制时始终合入人像）
+  const pipLastPos = { left: null, top: null, size: null };
+
+  function updatePipLastPos() {
+    if (!webcamPipWrapper.classList.contains('pip-hidden')) {
+      pipLastPos.left = webcamPipWrapper.offsetLeft;
+      pipLastPos.top  = webcamPipWrapper.offsetTop;
+      pipLastPos.size = webcamPipWrapper.offsetWidth;
+    }
+  }
+
+  /**
+   * 获取白板（canvasWrapper）在 canvasArea 中的矩形（相对 canvasArea 的坐标）。
+   * 这是 PiP 唯一允许存在的区域。
+   */
+  function getCanvasRectInArea() {
+    const areaRect    = canvasArea.getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
+    return {
+      left:   wrapperRect.left   - areaRect.left,
+      top:    wrapperRect.top    - areaRect.top,
+      right:  wrapperRect.right  - areaRect.left,
+      bottom: wrapperRect.bottom - areaRect.top,
+      width:  wrapperRect.width,
+      height: wrapperRect.height,
+    };
+  }
+
+  /**
+   * 将 PiP 重新定位到白板（canvasWrapper）范围内的右下角。
+   * 当画布比例切换或窗口 resize 时调用，确保 PiP 始终在白板内。
+   */
+  function repositionPipToCanvas() {
+    if (webcamPipWrapper.classList.contains('pip-hidden')) return;
+
+    const cr = getCanvasRectInArea();
+
+    // PiP 当前尺寸（可能已被拖拽缩放改变）
+    let pipSize = webcamPipWrapper.offsetWidth;
+
+    // 自适应最大尺寸：不超过画布短边的 40%，最小 80px
+    const maxPip = Math.floor(Math.min(cr.width, cr.height) * 0.40);
+    const minPip = 80;
+    pipSize = Math.max(minPip, Math.min(pipSize, maxPip));
+
+    // 强制同步尺寸
+    webcamPipWrapper.style.width  = pipSize + 'px';
+    webcamPipWrapper.style.height = pipSize + 'px';
+
+    // 清除 preset class 和 right/bottom，使用 left/top 精确定位
+    webcamPipWrapper.classList.remove('pip-md', 'pip-lg');
+    webcamPipWrapper.style.right  = 'auto';
+    webcamPipWrapper.style.bottom = 'auto';
+
+    const margin = 16;
+    // 定位到白板右下角（相对于 canvasArea）
+    const nx = Math.max(cr.left + margin, cr.left + cr.width  - pipSize - margin);
+    const ny = Math.max(cr.top  + margin, cr.top  + cr.height - pipSize - margin);
+
+    webcamPipWrapper.style.left = nx + 'px';
+    webcamPipWrapper.style.top  = ny + 'px';
+
+    syncHandlePos();
+    updatePipLastPos();
+  }
+
   async function startWebcam() {
     try {
       // 只约束 facingMode，不限制分辨率，兼容性最好
@@ -1020,7 +1139,8 @@
     if (webcamPipWrapper.classList.contains('pip-hidden')) {
       webcamPipWrapper.classList.remove('pip-hidden');
       await startWebcam();
-      syncHandlePos();
+      // 定位到当前画布比例下的右下角
+      requestAnimationFrame(() => repositionPipToCanvas());
     } else {
       webcamPipWrapper.classList.add('pip-hidden');
       pipResizeHandle.classList.remove('visible');
@@ -1057,6 +1177,8 @@
     const hy = top + h - offset - HANDLE_SIZE / 2;
     pipResizeHandle.style.left = hx + 'px';
     pipResizeHandle.style.top = hy + 'px';
+    // 记录最后可见位置（供录制合成使用）
+    updatePipLastPos();
   }
 
   // 鼠标进入 wrapper 或 handle 时显示，离开时隐藏
@@ -1100,15 +1222,20 @@
     if (!pipDragging) return;
     const pw = webcamPipWrapper.offsetWidth;
     const ph = webcamPipWrapper.offsetHeight;
-    const maxX = canvasArea.offsetWidth - pw;
-    const maxY = canvasArea.offsetHeight - ph;
-    const nx = Math.max(0, Math.min(maxX, pipStartLeft + clientX - pipStartMouseX));
-    const ny = Math.max(0, Math.min(maxY, pipStartTop + clientY - pipStartMouseY));
+    const cr = getCanvasRectInArea();
+    const margin = 8;
+    // 严格限制在白板（canvasWrapper）范围内
+    const minX = cr.left + margin;
+    const minY = cr.top  + margin;
+    const maxX = cr.right  - pw - margin;
+    const maxY = cr.bottom - ph - margin;
+    const nx = Math.max(minX, Math.min(maxX, pipStartLeft + clientX - pipStartMouseX));
+    const ny = Math.max(minY, Math.min(maxY, pipStartTop  + clientY - pipStartMouseY));
     webcamPipWrapper.style.left = nx + 'px';
-    webcamPipWrapper.style.top = ny + 'px';
+    webcamPipWrapper.style.top  = ny + 'px';
     syncHandlePos();
   }
-  function pipDragEnd() { pipDragging = false; }
+  function pipDragEnd() { pipDragging = false; updatePipLastPos(); }
 
   webcamPipWrapper.addEventListener('mousedown', e => { pipDragStart(e.clientX, e.clientY); e.stopPropagation(); });
   webcamPipWrapper.addEventListener('touchstart', e => {
@@ -1147,10 +1274,24 @@
     const dx = clientX - pipResizeStartX;
     const dy = clientY - pipResizeStartY;
     const delta = (dx + dy) / 2;
-    const newSize = Math.min(PIP_MAX, Math.max(PIP_MIN, pipResizeStartW + delta));
-    webcamPipWrapper.style.width = newSize + 'px';
-    webcamPipWrapper.style.height = newSize + 'px';
+    // 最大尺寸：画布短边的 40%（但不超过 PIP_MAX）
+    const cr = getCanvasRectInArea();
+    const maxFromCanvas = Math.floor(Math.min(cr.width, cr.height) * 0.40);
+    const maxSize = Math.min(PIP_MAX, maxFromCanvas);
+    const finalSize = Math.min(maxSize, Math.max(PIP_MIN, pipResizeStartW + delta));
+    webcamPipWrapper.style.width = finalSize + 'px';
+    webcamPipWrapper.style.height = finalSize + 'px';
     webcamPipWrapper.classList.remove('pip-md', 'pip-lg');
+
+    // 缩放后确保 PiP 仍在白板范围内
+    const margin = 8;
+    let curLeft = webcamPipWrapper.offsetLeft;
+    let curTop  = webcamPipWrapper.offsetTop;
+    const clampedLeft = Math.max(cr.left + margin, Math.min(cr.right  - finalSize - margin, curLeft));
+    const clampedTop  = Math.max(cr.top  + margin, Math.min(cr.bottom - finalSize - margin, curTop));
+    if (clampedLeft !== curLeft) webcamPipWrapper.style.left = clampedLeft + 'px';
+    if (clampedTop  !== curTop)  webcamPipWrapper.style.top  = clampedTop  + 'px';
+
     syncHandlePos();
   }
   function pipResizeEnd() {
@@ -1159,6 +1300,7 @@
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
     syncHandlePos();
+    updatePipLastPos();
     const sz = webcamPipWrapper.offsetWidth;
     if (sz <= 140) state.camSize = 'sm';
     else if (sz <= 220) state.camSize = 'md';
@@ -1198,6 +1340,8 @@
       document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       resizeCanvas();
+      // resizeCanvas 内的 clampPipToCanvas 只做夹入，比例大幅变化后强制重定位到右下角
+      requestAnimationFrame(() => repositionPipToCanvas());
     });
   });
 
@@ -1225,21 +1369,30 @@
       state.camSize = btn.dataset.camsize;
       document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      webcamPipWrapper.className = 'webcam-pip-wrapper';
-      // Clear any inline size/position set by drag-resize or drag-move
-      webcamPipWrapper.style.width = '';
-      webcamPipWrapper.style.height = '';
-      webcamPipWrapper.style.left = '';
-      webcamPipWrapper.style.top = '';
-      webcamPipWrapper.style.right = '';
-      webcamPipWrapper.style.bottom = '';
-      if (state.camSize === 'md') webcamPipWrapper.classList.add('pip-md');
-      else if (state.camSize === 'lg') webcamPipWrapper.classList.add('pip-lg');
-      else if (state.camSize === 'hidden') {
+
+      if (state.camSize === 'hidden') {
         webcamPipWrapper.classList.add('pip-hidden');
         pipResizeHandle.classList.remove('visible');
+        syncCamBtnState();
+        return;
       }
-      setTimeout(syncHandlePos, 50); // wait for layout
+
+      // 先移除所有 size class 和 inline 尺寸/位置样式
+      webcamPipWrapper.classList.remove('pip-hidden', 'pip-md', 'pip-lg');
+      webcamPipWrapper.style.width   = '';
+      webcamPipWrapper.style.height  = '';
+      webcamPipWrapper.style.left    = '';
+      webcamPipWrapper.style.top     = '';
+      webcamPipWrapper.style.right   = '';
+      webcamPipWrapper.style.bottom  = '';
+
+      // 设置目标尺寸（通过 class 临时设置，repositionPipToCanvas 会读取并可能约束）
+      if (state.camSize === 'md') webcamPipWrapper.classList.add('pip-md');
+      else if (state.camSize === 'lg') webcamPipWrapper.classList.add('pip-lg');
+
+      // 等 layout 完成后重新定位到画布内
+      requestAnimationFrame(() => repositionPipToCanvas());
+      syncCamBtnState();
     });
   });
 
@@ -1296,29 +1449,65 @@
     function drawFrame() {
       if (!state.isRecording) return;
       compCtx.clearRect(0, 0, compCanvas.width, compCanvas.height);
-      // Draw main canvas
+      // Draw main canvas (whiteboard)
       compCtx.drawImage(canvas, 0, 0);
-      // Draw webcam PiP
-      if (!webcamPipWrapper.classList.contains('pip-hidden') && webcamVideo.srcObject) {
-        const pipSize = webcamPipWrapper.offsetWidth;
-        const pipLeft = webcamPipWrapper.offsetLeft;
-        const pipTop = webcamPipWrapper.offsetTop;
-        // Draw circle mask
+
+      // Draw webcam PiP — 始终合入录制，不管 UI 上是否 pip-hidden
+      if (webcamVideo.srcObject && webcamVideo.readyState >= 2) {
+        // 优先取当前可见位置，隐藏时回退到最后记录的位置
+        const isVisible = !webcamPipWrapper.classList.contains('pip-hidden');
+        if (isVisible) updatePipLastPos();
+
+        const pipAreaLeft = pipLastPos.left !== null ? pipLastPos.left : webcamPipWrapper.offsetLeft;
+        const pipAreaTop  = pipLastPos.top  !== null ? pipLastPos.top  : webcamPipWrapper.offsetTop;
+        const pipSize     = pipLastPos.size !== null ? pipLastPos.size  : webcamPipWrapper.offsetWidth;
+
+        if (pipSize <= 0) { requestAnimationFrame(drawFrame); return; }
+
+        // PiP 相对 canvasArea 的位置
+        // canvasWrapper（即 wrapper）相对 canvasArea 的偏移（px）
+        const areaRect    = canvasArea.getBoundingClientRect();
+        const canvasRect  = canvas.getBoundingClientRect();
+        const wrapperRect = wrapper.getBoundingClientRect();
+
+        const wrapOffX = wrapperRect.left - areaRect.left;
+        const wrapOffY = wrapperRect.top  - areaRect.top;
+
+        // PiP 相对 canvasWrapper 的位置
+        const pipRelX = pipAreaLeft - wrapOffX;
+        const pipRelY = pipAreaTop  - wrapOffY;
+
+        // canvasWrapper 的显示尺寸（CSS px）
+        const dispW = wrapperRect.width;
+        const dispH = wrapperRect.height;
+
+        // 把显示坐标换算到 canvas 内部坐标（canvas 可能有 DPR 缩放）
+        const scaleX = canvas.width  / dispW;
+        const scaleY = canvas.height / dispH;
+
+        const cx = (pipRelX + pipSize / 2) * scaleX;  // 圆心 X（canvas 坐标）
+        const cy = (pipRelY + pipSize / 2) * scaleY;  // 圆心 Y
+        const r  = (pipSize / 2) * scaleX;             // 半径（取 X 缩放，保持圆形）
+        const pw = pipSize * scaleX;
+        const ph = pipSize * scaleY;
+
+        // 圆形裁剪
         compCtx.save();
         compCtx.beginPath();
-        compCtx.arc(pipLeft + pipSize / 2, pipTop + pipSize / 2, pipSize / 2, 0, Math.PI * 2);
+        compCtx.arc(cx, cy, r, 0, Math.PI * 2);
         compCtx.clip();
-        // Mirror video
-        compCtx.translate(pipLeft + pipSize, pipTop);
+        // 镜像翻转绘制
+        compCtx.translate(cx + r, cy - r);
         compCtx.scale(-1, 1);
-        compCtx.drawImage(webcamVideo, 0, 0, pipSize, pipSize);
+        compCtx.drawImage(webcamVideo, 0, 0, pw, ph);
         compCtx.restore();
-        // Border
+
+        // 白色边框
         compCtx.save();
         compCtx.beginPath();
-        compCtx.arc(pipLeft + pipSize / 2, pipTop + pipSize / 2, pipSize / 2, 0, Math.PI * 2);
-        compCtx.strokeStyle = 'white';
-        compCtx.lineWidth = 3;
+        compCtx.arc(cx, cy, r, 0, Math.PI * 2);
+        compCtx.strokeStyle = 'rgba(255,255,255,0.9)';
+        compCtx.lineWidth = Math.max(2, r * 0.04);
         compCtx.stroke();
         compCtx.restore();
       }

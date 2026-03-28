@@ -175,8 +175,7 @@ html, body {
 /* ===== WEBCAM PIP ===== */
 .webcam-pip-wrapper {
   position: absolute;
-  bottom: 20px;
-  right: 24px;
+  /* 初始位置由 JS repositionPipToCanvas() 控制，CSS 不设 bottom/right 避免冲突 */
   width: 160px;
   height: 160px;
   border-radius: 50%;
